@@ -57,12 +57,23 @@ Uses browser-based UI for structured user input instead of text questions.
 
 <workflow>
   <step>PREPARE: Build 3 question objects with type and config</step>
-  <step>CALL: start_session(title="...", questions=[{type, config}, {type, config}, {type, config}])</step>
-  <step>WAIT: get_next_answer(session_id, block=true) - returns first answer</step>
-  <step>REACT: Process answer, push follow-up to keep queue full</step>
-  <step>LOOP: get_next_answer → process → push → repeat until design complete</step>
-  <step>END: When done, let queue empty, call end_session</step>
+  <step>CALL: start_session(title="...", questions=[q1, q2, q3])</step>
+  <step>LOOP until design complete:</step>
+  <step>  1. get_next_answer(block=true) → receive ONE answer</step>
+  <step>  2. IMMEDIATELY push_one/pick_many/ask_text to add follow-up question</step>
+  <step>  3. Go back to step 1</step>
+  <step>END: When design complete, call end_session</step>
 </workflow>
+
+<answer-loop-pattern>
+CORRECT PATTERN (interleaved):
+  get_next_answer → answer1 → push(q4) → get_next_answer → answer2 → push(q5) → ...
+
+WRONG PATTERN (batched - DO NOT DO THIS):
+  get_next_answer → answer1 → get_next_answer → answer2 → get_next_answer → answer3 → THEN push questions
+  
+After EVERY get_next_answer, you MUST push a new question BEFORE calling get_next_answer again.
+</answer-loop-pattern>
 
 <tool-selection-guide>
   <use tool="pick_one" when="User must choose ONE option"/>
@@ -96,17 +107,12 @@ Uses browser-based UI for structured user input instead of text questions.
   <rule>Only AFTER questions are fully prepared with configs, call start_session with questions array</rule>
 </phase>
 
-<phase name="startup">
-  <action>Call start_session with questions array - browser opens with questions ready</action>
-  <action>Call get_next_answer(session_id, block=true) - user answers in their order</action>
-  <action>Process answer, push follow-up, call get_next_answer again</action>
-  <action>Keep queue at 2-3 questions - user should never wait for you</action>
-</phase>
-
-<phase name="understanding">
-  <action>Based on initial 3 answers, ask follow-up questions ONE AT A TIME</action>
-  <action>Each answer informs the next question</action>
-  <action>Fire background tasks to research codebase if needed</action>
+<phase name="main-loop">
+  <action>Call start_session with questions array</action>
+  <action>Enter the answer-react loop:</action>
+  <action>  get_next_answer → receive answer → IMMEDIATELY push follow-up → repeat</action>
+  <action>Each answer informs the next question you push</action>
+  <action>NEVER call get_next_answer twice without pushing between</action>
 </phase>
 
 <phase name="exploring">
@@ -139,9 +145,9 @@ Uses browser-based UI for structured user input instead of text questions.
 </principles>
 
 <never-do>
-  <forbidden>NEVER call start_session(title="...") without questions parameter - THIS IS WRONG</forbidden>
-  <forbidden>ALWAYS call start_session(title="...", questions=[...]) - questions parameter is REQUIRED</forbidden>
-  <forbidden>NEVER push questions after start_session - they must be in the start_session call</forbidden>
+  <forbidden>NEVER call start_session without questions parameter</forbidden>
+  <forbidden>NEVER call get_next_answer twice in a row without pushing a question in between</forbidden>
+  <forbidden>NEVER batch-collect answers - react to EACH answer immediately with a follow-up</forbidden>
   <forbidden>NEVER let the queue go empty until brainstorm is FINISHED</forbidden>
   <forbidden>NEVER ask questions in text - use browser UI tools</forbidden>
 </never-do>
