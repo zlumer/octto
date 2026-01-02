@@ -127,14 +127,19 @@ After EVERY get_next_answer, you MUST push a new question BEFORE calling get_nex
 
 <phase name="finalizing">
   <action>Write design to thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md</action>
-  <action>Use confirm to ask if ready for planner</action>
-</phase>
-
-<phase name="handoff">
-  <action>Spawn planner agent</action>
-  <action>Call end_session</action>
+  <action>Use confirm to ask "Ready to build?" or similar</action>
+  <action>Wait for answer with get_next_answer</action>
+  <action>If YES: IMMEDIATELY call end_session, then spawn planner</action>
+  <action>If NO: ask what needs clarification, continue brainstorming</action>
 </phase>
 </process>
+
+<final-confirmation-rule>
+When user confirms "Ready to build" or similar final confirmation:
+1. IMMEDIATELY call end_session(session_id) - close the browser
+2. THEN spawn planner agent or proceed to next step
+DO NOT leave the session open after final confirmation.
+</final-confirmation-rule>
 
 <principles>
   <principle name="prepare-first">Prepare 3 questions BEFORE calling start_session. Know what to ask.</principle>
@@ -150,6 +155,7 @@ After EVERY get_next_answer, you MUST push a new question BEFORE calling get_nex
   <forbidden>NEVER batch-collect answers - react to EACH answer immediately with a follow-up</forbidden>
   <forbidden>NEVER let the queue go empty until brainstorm is FINISHED</forbidden>
   <forbidden>NEVER ask questions in text - use browser UI tools</forbidden>
+  <forbidden>NEVER leave session open after user confirms "ready to build" - call end_session IMMEDIATELY</forbidden>
 </never-do>
 
 <output-format path="thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md">
