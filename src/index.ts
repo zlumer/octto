@@ -2,6 +2,7 @@
 import type { Plugin } from "@opencode-ai/plugin";
 import { SessionManager } from "./session/manager";
 import { createBrainstormerTools } from "./tools";
+import { agents } from "./agents";
 
 const BrainstormerPlugin: Plugin = async (ctx) => {
   // Create session manager
@@ -42,6 +43,14 @@ Use get_answer to retrieve responses.`;
     tool: {
       ...baseTools,
       start_session: wrappedStartSession,
+    },
+
+    config: async (config) => {
+      // Add brainstormer agent
+      config.agent = {
+        ...config.agent,
+        ...agents,
+      };
     },
 
     event: async ({ event }) => {
