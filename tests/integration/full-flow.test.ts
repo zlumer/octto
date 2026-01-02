@@ -90,4 +90,51 @@ describe("Full Flow Integration", () => {
     expect(elapsed).toBeGreaterThanOrEqual(100);
     expect(elapsed).toBeLessThan(500); // Should not wait much longer
   });
+
+  it("should return answers in user order with get_next_answer", async () => {
+    const { session_id } = await manager.startSession({});
+
+    // Push 3 questions
+    const q1 = manager.pushQuestion(session_id, "confirm", { question: "Q1?" });
+    const q2 = manager.pushQuestion(session_id, "confirm", { question: "Q2?" });
+    const q3 = manager.pushQuestion(session_id, "confirm", { question: "Q3?" });
+
+    // User answers q3 first, then q1, then q2
+    manager.handleWsMessage(session_id, { type: "response", id: q3.question_id, answer: { choice: "yes" } });
+
+    // get_next_answer should return q3 (answered first)
+    const r1 = await manager.getNextAnswer({ session_id, block: false });
+    expect(r1.completed).toBe(true);
+    expect(r1.question_id).toBe(q3.question_id);
+    expect(r1.response).toEqual({ choice: "yes" });
+
+    // Answer q1
+    manager.handleWsMessage(session_id, { type: "response", id: q1.question_id, answer: { choice: "no" } });
+
+    // get_next_answer should return q1
+    const r2 = await manager.getNextAnswer({ session_id, block: false });
+    expect(r2.completed).toBe(true);
+    expect(r2.question_id).toBe(q1.question_id);
+    expect(r2.response).toEqual({ choice: "no" });
+  });
+
+  it("should wait for any answer with get_next_answer blocking", async () => {
+    const { session_id } = await manager.startSession({});
+
+    // Push questions
+    manager.pushQuestion(session_id, "confirm", { question: "Q1?" });
+    const q2 = manager.pushQuestion(session_id, "confirm", { question: "Q2?" });
+
+    // Start blocking get_next_answer
+    const answerPromise = manager.getNextAnswer({ session_id, block: true, timeout: 5000 });
+
+    // Answer q2 after a small delay
+    setTimeout(() => {
+      manager.handleWsMessage(session_id, { type: "response", id: q2.question_id, answer: { choice: "yes" } });
+    }, 50);
+
+    const result = await answerPromise;
+    expect(result.completed).toBe(true);
+    expect(result.question_id).toBe(q2.question_id);
+  });
 });

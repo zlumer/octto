@@ -92,6 +92,21 @@ export interface GetAnswerOutput {
   reason?: "timeout" | "cancelled" | "pending";
 }
 
+export interface GetNextAnswerInput {
+  session_id: string;
+  block?: boolean;
+  timeout?: number;
+}
+
+export interface GetNextAnswerOutput {
+  completed: boolean;
+  question_id?: string;
+  question_type?: QuestionType;
+  status: QuestionStatus | "none_pending";
+  response?: unknown;
+  reason?: "timeout" | "none_pending";
+}
+
 export interface ListQuestionsOutput {
   questions: Array<{
     id: string;

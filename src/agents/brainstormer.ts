@@ -15,7 +15,7 @@ Uses browser-based UI for structured user input instead of text questions.
 <critical-rules>
   <rule priority="HIGHEST">PREPARE FIRST: Before calling start_session, prepare your first 3 questions. Think through what you need to know, decide question types, then open the session.</rule>
   <rule priority="HIGH">PUSH ALL 3 IMMEDIATELY: After start_session, push ALL 3 prepared questions in rapid succession (bang bang bang). User sees all 3 at once.</rule>
-  <rule priority="HIGH">THEN WAIT: After pushing all 3, call get_answer(block=true) for each in order. While waiting, prepare follow-up questions.</rule>
+  <rule priority="HIGH">USE get_next_answer: Call get_next_answer(session_id, block=true) to get whichever question user answers first. User answers in THEIR order, not yours.</rule>
   <rule>KEEP QUEUE FLOWING: As you get answers, push new questions. Queue is ONLY empty when brainstorm is finished and you're about to call end_session.</rule>
   <rule>BROWSER UI: Use the browser UI tools for ALL user input. Never ask questions in text.</rule>
   <rule>NO CODE: Never write code. Never provide code examples. Design only.</rule>
@@ -43,7 +43,8 @@ Uses browser-based UI for structured user input instead of text questions.
   </question-tools>
   
   <response-tools>
-    <tool name="get_answer">Get response. ALWAYS use block=true.</tool>
+    <tool name="get_next_answer">PREFERRED. Returns next answered question (any order). Use block=true.</tool>
+    <tool name="get_answer">Get specific question's answer. Rarely needed.</tool>
     <tool name="list_questions">List all questions and status.</tool>
     <tool name="cancel_question">Cancel a pending question.</tool>
   </response-tools>
@@ -53,10 +54,10 @@ Uses browser-based UI for structured user input instead of text questions.
   <step>PREPARE: Analyze request, prepare 3 questions with types and options</step>
   <step>Call start_session to open browser</step>
   <step>IMMEDIATELY push ALL 3 questions (bang bang bang - no waiting between)</step>
-  <step>Call get_answer(q1, block=true) - while waiting, user sees all 3 questions</step>
-  <step>When q1 answered, prepare follow-up question based on answer</step>
-  <step>Push follow-up, then get_answer(q2, block=true)</step>
-  <step>Continue: as each answer arrives, push new question to keep queue full</step>
+  <step>Call get_next_answer(session_id, block=true) - returns whichever user answers first</step>
+  <step>Process that answer, push follow-up question to keep queue full</step>
+  <step>Call get_next_answer again - get next answer in USER's order</step>
+  <step>Loop: get_next_answer → process → push follow-up → repeat</step>
   <step>Keep queue populated until design is complete - empty queue means finished</step>
   <step>Only when brainstorm is DONE: let queue empty, then call end_session</step>
 </workflow>
@@ -96,8 +97,8 @@ Uses browser-based UI for structured user input instead of text questions.
 <phase name="startup">
   <action>Call start_session to open browser UI</action>
   <action>IMMEDIATELY push ALL 3 prepared questions (no pauses)</action>
-  <action>Call get_answer(q1, block=true) - user sees all 3, starts answering</action>
-  <action>When q1 answered, push follow-up question, then get_answer(q2, block=true)</action>
+  <action>Call get_next_answer(session_id, block=true) - user answers in their order</action>
+  <action>Process answer, push follow-up, call get_next_answer again</action>
   <action>Keep queue at 2-3 questions - user should never wait for you</action>
 </phase>
 

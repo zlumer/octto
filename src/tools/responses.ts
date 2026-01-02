@@ -4,9 +4,10 @@ import type { SessionManager } from "../session/manager";
 
 export function createResponseTools(manager: SessionManager) {
   const get_answer = tool({
-    description: `Get the answer to a question.
+    description: `Get the answer to a SPECIFIC question.
 By default returns immediately with current status.
-Set block=true to wait for user response (with optional timeout).`,
+Set block=true to wait for user response (with optional timeout).
+NOTE: Prefer get_next_answer for better flow - it returns whichever question user answers first.`,
     args: {
       question_id: tool.schema.string().describe("Question ID from a question tool"),
       block: tool.schema.boolean().optional().describe("Wait for response (default: false)"),
@@ -39,6 +40,52 @@ ${JSON.stringify(result.response, null, 2)}
 **Reason:** ${result.reason}
 
 ${result.status === "pending" ? "User has not answered yet. Call again with block=true to wait." : ""}`;
+    },
+  });
+
+  const get_next_answer = tool({
+    description: `Wait for ANY question to be answered. Returns whichever question the user answers first.
+This is the PREFERRED way to get answers - lets user answer in any order.
+Push multiple questions, then call this repeatedly to get answers as they come.`,
+    args: {
+      session_id: tool.schema.string().describe("Session ID from start_session"),
+      block: tool.schema.boolean().optional().describe("Wait for response (default: false)"),
+      timeout: tool.schema
+        .number()
+        .optional()
+        .describe("Max milliseconds to wait if blocking (default: 300000 = 5 min)"),
+    },
+    execute: async (args) => {
+      const result = await manager.getNextAnswer({
+        session_id: args.session_id,
+        block: args.block,
+        timeout: args.timeout,
+      });
+
+      if (result.completed) {
+        return `## Answer Received
+
+**Question ID:** ${result.question_id}
+**Question Type:** ${result.question_type}
+**Status:** ${result.status}
+
+**Response:**
+\`\`\`json
+${JSON.stringify(result.response, null, 2)}
+\`\`\``;
+      }
+
+      if (result.status === "none_pending") {
+        return `## No Pending Questions
+
+All questions have been answered or there are no questions in the queue.
+Push more questions or end the session.`;
+      }
+
+      return `## Waiting for Answer
+
+**Status:** ${result.status}
+${result.reason === "timeout" ? "Timed out waiting for response." : "No answer yet."}`;
     },
   });
 
@@ -81,5 +128,5 @@ The question will be removed from the user's queue.`,
     },
   });
 
-  return { get_answer, list_questions, cancel_question };
+  return { get_answer, get_next_answer, list_questions, cancel_question };
 }

@@ -13,6 +13,8 @@ import type {
   PushQuestionOutput,
   GetAnswerInput,
   GetAnswerOutput,
+  GetNextAnswerInput,
+  GetNextAnswerOutput,
   ListQuestionsOutput,
 } from "./types";
 import { openBrowser } from "./browser";
@@ -36,6 +38,8 @@ export class SessionManager {
   private sessions: Map<string, Session> = new Map();
   private questionToSession: Map<string, string> = new Map();
   private responseWaiters: Map<string, Array<(response: unknown) => void>> = new Map();
+  // Session-level waiters for "any answer" - used by getNextAnswer
+  private sessionWaiters: Map<string, Array<(questionId: string, response: unknown) => void>> = new Map();
   private options: SessionManagerOptions;
 
   constructor(options: SessionManagerOptions = {}) {
@@ -235,6 +239,91 @@ export class SessionManager {
     });
   }
 
+  async getNextAnswer(input: GetNextAnswerInput): Promise<GetNextAnswerOutput> {
+    const session = this.sessions.get(input.session_id);
+    if (!session) {
+      return {
+        completed: false,
+        status: "none_pending",
+        reason: "none_pending",
+      };
+    }
+
+    // Check if any question is already answered but not yet retrieved
+    for (const question of session.questions.values()) {
+      if (question.status === "answered") {
+        // Mark as retrieved by changing status? Or just return it.
+        // For now, we return it - caller should track which they've seen
+        return {
+          completed: true,
+          question_id: question.id,
+          question_type: question.type,
+          status: "answered",
+          response: question.response,
+        };
+      }
+    }
+
+    // Check if there are any pending questions
+    const hasPending = Array.from(session.questions.values()).some((q) => q.status === "pending");
+
+    if (!hasPending) {
+      return {
+        completed: false,
+        status: "none_pending",
+        reason: "none_pending",
+      };
+    }
+
+    // Non-blocking: return current status
+    if (!input.block) {
+      return {
+        completed: false,
+        status: "pending",
+      };
+    }
+
+    // Blocking: wait for any response in this session
+    const timeout = input.timeout ?? 300000; // 5 minutes default
+
+    return new Promise<GetNextAnswerOutput>((resolve) => {
+      const timeoutId = setTimeout(() => {
+        // Remove waiter
+        const waiters = this.sessionWaiters.get(input.session_id) || [];
+        const idx = waiters.indexOf(waiterCallback);
+        if (idx >= 0) waiters.splice(idx, 1);
+
+        resolve({
+          completed: false,
+          status: "timeout",
+          reason: "timeout",
+        });
+      }, timeout);
+
+      const waiterCallback = (questionId: string, response: unknown) => {
+        clearTimeout(timeoutId);
+        // Remove this waiter
+        const waiters = this.sessionWaiters.get(input.session_id) || [];
+        const idx = waiters.indexOf(waiterCallback);
+        if (idx >= 0) waiters.splice(idx, 1);
+
+        const question = session.questions.get(questionId);
+        resolve({
+          completed: true,
+          question_id: questionId,
+          question_type: question?.type,
+          status: "answered",
+          response,
+        });
+      };
+
+      // Register session-level waiter
+      const waiters = this.sessionWaiters.get(input.session_id) || [];
+      waiters.push(waiterCallback);
+      this.sessionWaiters.set(input.session_id, waiters);
+    });
+  }
+
   cancelQuestion(questionId: string): { ok: boolean } {
     const sessionId = this.questionToSession.get(questionId);
     if (!sessionId) {
@@ -344,10 +433,19 @@ export class SessionManager {
       question.answeredAt = new Date();
       question.response = message.answer;
 
-      // Notify waiters
+      // Notify question-specific waiters
       const waiters = this.responseWaiters.get(message.id) || [];
       for (const waiter of waiters) {
         waiter(message.answer);
+      }
+
+      // Notify session-level waiters (for getNextAnswer)
+      const sessionWaiters = this.sessionWaiters.get(sessionId) || [];
+      // Only notify the first waiter (others will get subsequent answers)
+      if (sessionWaiters.length > 0) {
+        const waiter = sessionWaiters.shift()!;
+        waiter(message.id, message.answer);
+        this.sessionWaiters.set(sessionId, sessionWaiters);
       }
       this.responseWaiters.delete(message.id);
     }
