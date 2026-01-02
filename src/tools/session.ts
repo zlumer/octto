@@ -7,7 +7,7 @@ export function createSessionTools(manager: SessionManager) {
   const start_session = tool({
     description: `Start an interactive brainstormer session with initial questions.
 Opens a browser window with questions already displayed - no waiting.
-ALWAYS provide your prepared questions here for instant display.`,
+REQUIRED: You MUST provide at least 1 question. Will fail without questions.`,
     args: {
       title: tool.schema.string().optional().describe("Session title (shown in browser)"),
       questions: tool.schema
@@ -28,12 +28,31 @@ ALWAYS provide your prepared questions here for instant display.`,
             config: tool.schema.object({}).passthrough().describe("Question config (varies by type)"),
           }),
         )
-        .optional()
-        .describe("Initial questions to display immediately when browser opens"),
+        .describe("REQUIRED: Initial questions to display when browser opens. Must have at least 1."),
     },
     execute: async (args) => {
+      // ENFORCE: questions are required
+      if (!args.questions || args.questions.length === 0) {
+        return `## ERROR: questions parameter is REQUIRED
+
+start_session MUST include questions. Browser should open with questions ready.
+
+Example:
+\`\`\`
+start_session(
+  title="Design Session",
+  questions=[
+    {type: "pick_one", config: {question: "What language?", options: [{id: "go", label: "Go"}]}},
+    {type: "ask_text", config: {question: "Any constraints?"}}
+  ]
+)
+\`\`\`
+
+Please call start_session again WITH your prepared questions.`;
+      }
+
       try {
-        const questions = args.questions?.map((q) => ({
+        const questions = args.questions.map((q) => ({
           type: q.type as QuestionType,
           config: q.config as unknown as QuestionConfig,
         }));
