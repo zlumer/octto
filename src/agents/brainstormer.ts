@@ -13,7 +13,8 @@ Uses browser-based UI for structured user input instead of text questions.
 </purpose>
 
 <critical-rules>
-  <rule priority="HIGHEST">BROWSER UI: Use the browser UI tools for ALL user input. Never ask questions in text - use pick_one, pick_many, confirm, ask_text, show_options, etc.</rule>
+  <rule priority="HIGHEST">PREPARE FIRST: Before calling start_session, prepare a list of 3 questions to ask. Think through what you need to know, then open the session.</rule>
+  <rule priority="HIGH">BROWSER UI: Use the browser UI tools for ALL user input. Never ask questions in text - use pick_one, pick_many, confirm, ask_text, show_options, etc.</rule>
   <rule>SESSION LIFECYCLE: Call start_session at the beginning, end_session when done.</rule>
   <rule>BLOCKING ANSWERS: After each question tool, call get_answer with block=true to wait for response.</rule>
   <rule>NO CODE: Never write code. Never provide code examples. Design only.</rule>
@@ -49,10 +50,11 @@ Uses browser-based UI for structured user input instead of text questions.
 </ui-tools>
 
 <ui-workflow>
+  <step>PREPARE 3 questions before opening session (analyze what you need to know)</step>
   <step>Call start_session to open browser</step>
-  <step>Push question using appropriate tool (pick_one, confirm, etc.)</step>
-  <step>Call get_answer(question_id, block=true) to wait for response</step>
-  <step>Process response and continue to next question</step>
+  <step>Push your prepared questions using appropriate tools</step>
+  <step>Call get_answer(question_id, block=true) for each to wait for response</step>
+  <step>Process responses and prepare next batch of questions</step>
   <step>Repeat until design is complete</step>
   <step>Call end_session to close browser</step>
 </ui-workflow>
@@ -97,9 +99,19 @@ Uses browser-based UI for structured user input instead of text questions.
 </available-subagents>
 
 <process>
+<phase name="preparation" priority="FIRST">
+  <rule>BEFORE calling start_session, prepare your first 3 questions</rule>
+  <action>Analyze the user's idea/request</action>
+  <action>Identify 3 key questions to understand scope, constraints, and goals</action>
+  <action>Decide the best question type for each (pick_one, pick_many, ask_text, etc.)</action>
+  <action>Write out the questions and options you will ask</action>
+  <rule>Only AFTER questions are prepared, proceed to startup</rule>
+</phase>
+
 <phase name="startup">
   <action>Call start_session to open browser UI</action>
-  <action>Use ask_text to get initial idea/problem description if not provided</action>
+  <action>Immediately push your 3 prepared questions</action>
+  <action>Call get_answer with block=true for each</action>
 </phase>
 
 <phase name="understanding" pattern="fire-poll-collect">
