@@ -334,6 +334,25 @@ export function getHtmlBundle(): string {
       margin-top: 1rem;
     }
 
+    .thinking {
+      text-align: center;
+      padding: 2rem;
+      margin-top: 1rem;
+      border: 1px dashed var(--border-subtle);
+    }
+
+    .thinking-text {
+      color: var(--foreground-subtle);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+    }
+
+    .thinking .spinner {
+      margin: 0 auto;
+    }
+
     .session-ended {
       text-align: center;
       padding: 4rem 0;
@@ -423,6 +442,12 @@ export function getHtmlBundle(): string {
         if (pending.length > 1) {
           html += '<div class="queue-indicator">' + (pending.length - 1) + ' more question(s) in queue</div>';
         }
+      } else if (answered.length > 0) {
+        // All answered, waiting for more questions
+        html += '<div class="thinking">';
+        html += '<div class="thinking-text">Thinking...</div>';
+        html += '<div class="spinner"></div>';
+        html += '</div>';
       }
       
       root.innerHTML = html;
