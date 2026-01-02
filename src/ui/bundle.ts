@@ -426,6 +426,18 @@ export function getHtmlBundle(): string {
       margin-bottom: 0.5rem;
     }
 
+    .plan-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .plan-section-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
     .session-ended {
       text-align: center;
       padding: 4rem 0;
@@ -554,6 +566,9 @@ export function getHtmlBundle(): string {
         case 'review_section':
           html += renderReviewSection(q);
           break;
+        case 'show_plan':
+          html += renderShowPlan(q);
+          break;
         default:
           html += '<p>Question type "' + q.questionType + '" not yet implemented.</p>';
           html += '<div class="btn-group"><button onclick="submitAnswer(\\'' + q.id + '\\', {})" class="btn">Skip</button></div>';
@@ -676,6 +691,35 @@ export function getHtmlBundle(): string {
       html += '<div class="btn-group">';
       html += '<button onclick="submitReview(\\'' + q.id + '\\', \\'approve\\')" class="btn btn-success">Approve</button>';
       html += '<button onclick="submitReview(\\'' + q.id + '\\', \\'revise\\')" class="btn btn-danger">Needs Revision</button>';
+      html += '</div>';
+      return html;
+    }
+    
+    function renderShowPlan(q) {
+      let html = '';
+      
+      // Render sections if provided
+      if (q.config.sections && q.config.sections.length > 0) {
+        for (const section of q.config.sections) {
+          html += '<div class="plan-section">';
+          html += '<h3 class="plan-section-title">' + escapeHtml(section.title) + '</h3>';
+          const sectionHtml = typeof marked !== 'undefined' ? marked.parse(section.content || '') : escapeHtml(section.content || '');
+          html += '<div class="review-content">' + sectionHtml + '</div>';
+          html += '</div>';
+        }
+      } else if (q.config.markdown) {
+        // Fallback to raw markdown
+        const markdownHtml = typeof marked !== 'undefined' ? marked.parse(q.config.markdown) : escapeHtml(q.config.markdown);
+        html += '<div class="review-content">' + markdownHtml + '</div>';
+      }
+      
+      html += '<div class="feedback-input">';
+      html += '<label for="feedback_' + q.id + '">Feedback (optional)</label>';
+      html += '<textarea id="feedback_' + q.id + '" class="textarea" rows="3" placeholder="Any suggestions or changes..."></textarea>';
+      html += '</div>';
+      html += '<div class="btn-group">';
+      html += '<button onclick="submitReview(\\'' + q.id + '\\', \\'approve\\')" class="btn btn-success">Approve Plan</button>';
+      html += '<button onclick="submitReview(\\'' + q.id + '\\', \\'revise\\')" class="btn btn-danger">Needs Changes</button>';
       html += '</div>';
       return html;
     }
