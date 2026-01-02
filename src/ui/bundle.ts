@@ -450,6 +450,195 @@ export function getHtmlBundle(): string {
     .session-ended p {
       color: var(--foreground-subtle);
     }
+
+    /* Show Options */
+    .options-with-pros {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .option-card {
+      border: 1px solid var(--border-subtle);
+      padding: 1rem;
+    }
+
+    .option-card.recommended {
+      border-color: var(--border);
+      background: var(--surface-elevated);
+    }
+
+    .option-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .pros, .cons {
+      font-size: 0.8125rem;
+      margin-top: 0.5rem;
+    }
+
+    .pros { color: var(--accent-success); }
+    .cons { color: var(--accent-error); }
+
+    .pros ul, .cons ul {
+      margin: 0.25rem 0 0 1rem;
+    }
+
+    /* Show Diff */
+    .diff-filepath {
+      font-size: 0.75rem;
+      color: var(--foreground-subtle);
+      margin-bottom: 0.5rem;
+      font-family: monospace;
+    }
+
+    .diff-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .diff-side {
+      border: 1px solid var(--border-subtle);
+      overflow: auto;
+      max-height: 300px;
+    }
+
+    .diff-label {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      padding: 0.25rem 0.5rem;
+      background: var(--surface-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .diff-before .diff-label { color: var(--accent-error); }
+    .diff-after .diff-label { color: var(--accent-success); }
+
+    .diff-side pre {
+      margin: 0;
+      padding: 0.5rem;
+      font-size: 0.75rem;
+      white-space: pre-wrap;
+    }
+
+    /* Rank */
+    .rank-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .rank-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--surface);
+      cursor: grab;
+    }
+
+    .rank-item:active, .rank-item.dragging {
+      cursor: grabbing;
+      opacity: 0.5;
+    }
+
+    .rank-handle {
+      color: var(--foreground-subtle);
+    }
+
+    .rank-num {
+      font-weight: 600;
+      min-width: 1.5rem;
+    }
+
+    /* Rate */
+    .rate-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .rate-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rate-stars {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .rate-star {
+      width: 2rem;
+      height: 2rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    .rate-star.selected {
+      background: var(--foreground);
+      color: var(--background);
+      border-color: var(--foreground);
+    }
+
+    /* Code Input */
+    .code-input {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.8125rem;
+    }
+
+    .code-input-label {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      color: var(--foreground-subtle);
+      margin-bottom: 0.25rem;
+    }
+
+    /* File Upload */
+    .file-upload {
+      margin-bottom: 1rem;
+    }
+
+    .file-upload input[type="file"] {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px dashed var(--border-subtle);
+    }
+
+    .image-preview {
+      display: flex;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+
+    /* Emoji React */
+    .emoji-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .emoji-btn {
+      font-size: 2rem;
+      padding: 0.75rem;
+      border: 1px solid var(--border-subtle);
+      background: var(--surface);
+      cursor: pointer;
+    }
+
+    .emoji-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--border);
+    }
   </style>
 </head>
 <body>
@@ -568,6 +757,30 @@ export function getHtmlBundle(): string {
           break;
         case 'show_plan':
           html += renderShowPlan(q);
+          break;
+        case 'show_options':
+          html += renderShowOptions(q);
+          break;
+        case 'show_diff':
+          html += renderShowDiff(q);
+          break;
+        case 'rank':
+          html += renderRank(q);
+          break;
+        case 'rate':
+          html += renderRate(q);
+          break;
+        case 'ask_code':
+          html += renderAskCode(q);
+          break;
+        case 'ask_image':
+          html += renderAskImage(q);
+          break;
+        case 'ask_file':
+          html += renderAskFile(q);
+          break;
+        case 'emoji_react':
+          html += renderEmojiReact(q);
           break;
         default:
           html += '<p>Question type "' + q.questionType + '" not yet implemented.</p>';
@@ -724,6 +937,142 @@ export function getHtmlBundle(): string {
       return html;
     }
     
+    function renderShowOptions(q) {
+      const options = q.config.options || [];
+      let html = '<div class="options-with-pros">';
+      for (const opt of options) {
+        const isRecommended = q.config.recommended === opt.id;
+        html += '<div class="option-card' + (isRecommended ? ' recommended' : '') + '" data-id="' + opt.id + '">';
+        html += '<div class="option-header">';
+        html += '<input type="radio" name="opt_' + q.id + '" value="' + opt.id + '">';
+        html += '<span class="option-label">' + escapeHtml(opt.label);
+        if (isRecommended) html += ' <span class="option-tag">(recommended)</span>';
+        html += '</span></div>';
+        if (opt.description) html += '<div class="option-desc">' + escapeHtml(opt.description) + '</div>';
+        if (opt.pros && opt.pros.length > 0) {
+          html += '<div class="pros"><strong>Pros:</strong><ul>';
+          for (const pro of opt.pros) html += '<li>' + escapeHtml(pro) + '</li>';
+          html += '</ul></div>';
+        }
+        if (opt.cons && opt.cons.length > 0) {
+          html += '<div class="cons"><strong>Cons:</strong><ul>';
+          for (const con of opt.cons) html += '<li>' + escapeHtml(con) + '</li>';
+          html += '</ul></div>';
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+      if (q.config.allowFeedback) {
+        html += '<div class="feedback-input"><label>Feedback (optional)</label>';
+        html += '<textarea id="feedback_' + q.id + '" class="textarea" rows="2"></textarea></div>';
+      }
+      html += '<div class="btn-group"><button onclick="submitShowOptions(\\'' + q.id + '\\')" class="btn btn-primary">Select</button></div>';
+      return html;
+    }
+    
+    function renderShowDiff(q) {
+      let html = '';
+      if (q.config.filePath) {
+        html += '<div class="diff-filepath">' + escapeHtml(q.config.filePath) + '</div>';
+      }
+      html += '<div class="diff-container">';
+      html += '<div class="diff-side diff-before"><div class="diff-label">Before</div><pre><code>' + escapeHtml(q.config.before || '') + '</code></pre></div>';
+      html += '<div class="diff-side diff-after"><div class="diff-label">After</div><pre><code>' + escapeHtml(q.config.after || '') + '</code></pre></div>';
+      html += '</div>';
+      html += '<div class="feedback-input"><label>Comments (optional)</label>';
+      html += '<textarea id="feedback_' + q.id + '" class="textarea" rows="2"></textarea></div>';
+      html += '<div class="btn-group">';
+      html += '<button onclick="submitDiff(\\'' + q.id + '\\', \\'approve\\')" class="btn btn-success">Approve</button>';
+      html += '<button onclick="submitDiff(\\'' + q.id + '\\', \\'reject\\')" class="btn btn-danger">Reject</button>';
+      html += '<button onclick="submitDiff(\\'' + q.id + '\\', \\'edit\\')" class="btn">Edit</button>';
+      html += '</div>';
+      return html;
+    }
+    
+    function renderRank(q) {
+      const options = q.config.options || [];
+      let html = '';
+      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
+      html += '<div class="rank-list" id="rank_' + q.id + '">';
+      for (let i = 0; i < options.length; i++) {
+        const opt = options[i];
+        html += '<div class="rank-item" data-id="' + opt.id + '" draggable="true">';
+        html += '<span class="rank-handle">☰</span>';
+        html += '<span class="rank-num">' + (i + 1) + '</span>';
+        html += '<span class="rank-label">' + escapeHtml(opt.label) + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+      html += '<div class="btn-group"><button onclick="submitRank(\\'' + q.id + '\\')" class="btn btn-primary">Submit Ranking</button></div>';
+      return html;
+    }
+    
+    function renderRate(q) {
+      const options = q.config.options || [];
+      const min = q.config.min || 1;
+      const max = q.config.max || 5;
+      let html = '<div class="rate-list">';
+      for (const opt of options) {
+        html += '<div class="rate-item">';
+        html += '<div class="rate-label">' + escapeHtml(opt.label) + '</div>';
+        html += '<div class="rate-stars" id="rate_' + q.id + '_' + opt.id + '">';
+        for (let i = min; i <= max; i++) {
+          html += '<button class="rate-star" data-value="' + i + '" onclick="setRating(\\'' + q.id + '\\', \\'' + opt.id + '\\', ' + i + ')">' + i + '</button>';
+        }
+        html += '</div></div>';
+      }
+      html += '</div>';
+      html += '<div class="btn-group"><button onclick="submitRate(\\'' + q.id + '\\')" class="btn btn-primary">Submit Ratings</button></div>';
+      return html;
+    }
+    
+    function renderAskCode(q) {
+      let html = '';
+      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
+      const lang = q.config.language || 'plaintext';
+      html += '<div class="code-input-label">Language: ' + escapeHtml(lang) + '</div>';
+      html += '<textarea id="code_' + q.id + '" class="textarea code-input" rows="10" placeholder="' + escapeHtml(q.config.placeholder || 'Enter code here...') + '"></textarea>';
+      html += '<div class="btn-group"><button onclick="submitCode(\\'' + q.id + '\\')" class="btn btn-primary">Submit Code</button></div>';
+      return html;
+    }
+    
+    function renderAskImage(q) {
+      let html = '';
+      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
+      const multiple = q.config.multiple ? 'multiple' : '';
+      html += '<div class="file-upload">';
+      html += '<input type="file" id="image_' + q.id + '" accept="image/*" ' + multiple + ' onchange="previewImages(\\'' + q.id + '\\')">';
+      html += '<div id="preview_' + q.id + '" class="image-preview"></div>';
+      html += '</div>';
+      html += '<div class="btn-group"><button onclick="submitImages(\\'' + q.id + '\\')" class="btn btn-primary">Upload</button></div>';
+      return html;
+    }
+    
+    function renderAskFile(q) {
+      let html = '';
+      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
+      const multiple = q.config.multiple ? 'multiple' : '';
+      const accept = q.config.accept ? q.config.accept.join(',') : '';
+      html += '<div class="file-upload">';
+      html += '<input type="file" id="file_' + q.id + '" ' + (accept ? 'accept="' + accept + '"' : '') + ' ' + multiple + '>';
+      html += '<div id="filelist_' + q.id + '" class="file-list"></div>';
+      html += '</div>';
+      html += '<div class="btn-group"><button onclick="submitFiles(\\'' + q.id + '\\')" class="btn btn-primary">Upload</button></div>';
+      return html;
+    }
+    
+    function renderEmojiReact(q) {
+      let html = '';
+      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
+      const emojis = q.config.emojis || ['👍', '👎', '❤️', '🎉', '😕', '🚀'];
+      html += '<div class="emoji-grid">';
+      for (const emoji of emojis) {
+        html += '<button class="emoji-btn" onclick="submitAnswer(\\'' + q.id + '\\', {emoji: \\'' + emoji + '\\'})\">' + emoji + '</button>';
+      }
+      html += '</div>';
+      return html;
+    }
+    
     function attachListeners() {
       document.querySelectorAll('input[type="range"]').forEach(slider => {
         const id = slider.id.replace('slider_', 'slider_val_');
@@ -773,6 +1122,136 @@ export function getHtmlBundle(): string {
       const feedback = feedbackEl ? feedbackEl.value : '';
       submitAnswer(questionId, { decision, feedback: feedback || undefined });
     }
+    
+    function submitShowOptions(questionId) {
+      const selected = document.querySelector('input[name="opt_' + questionId + '"]:checked');
+      if (selected) {
+        const feedbackEl = document.getElementById('feedback_' + questionId);
+        const feedback = feedbackEl ? feedbackEl.value : '';
+        submitAnswer(questionId, { selected: selected.value, feedback: feedback || undefined });
+      }
+    }
+    
+    function submitDiff(questionId, decision) {
+      const feedbackEl = document.getElementById('feedback_' + questionId);
+      const feedback = feedbackEl ? feedbackEl.value : '';
+      submitAnswer(questionId, { decision, feedback: feedback || undefined });
+    }
+    
+    function submitRank(questionId) {
+      const container = document.getElementById('rank_' + questionId);
+      const items = container.querySelectorAll('.rank-item');
+      const ranking = Array.from(items).map((item, idx) => ({
+        id: item.dataset.id,
+        rank: idx + 1
+      }));
+      submitAnswer(questionId, { ranking });
+    }
+    
+    function submitRate(questionId) {
+      const q = questions.find(q => q.id === questionId);
+      if (!q) return;
+      const ratings = {};
+      for (const opt of (q.config.options || [])) {
+        const container = document.getElementById('rate_' + questionId + '_' + opt.id);
+        const selected = container.querySelector('.rate-star.selected');
+        if (selected) {
+          ratings[opt.id] = parseInt(selected.dataset.value);
+        }
+      }
+      submitAnswer(questionId, { ratings });
+    }
+    
+    function setRating(questionId, optId, value) {
+      const container = document.getElementById('rate_' + questionId + '_' + optId);
+      container.querySelectorAll('.rate-star').forEach(btn => {
+        btn.classList.toggle('selected', parseInt(btn.dataset.value) <= value);
+      });
+    }
+    
+    function submitCode(questionId) {
+      const textarea = document.getElementById('code_' + questionId);
+      if (textarea) {
+        submitAnswer(questionId, { code: textarea.value });
+      }
+    }
+    
+    function submitImages(questionId) {
+      const input = document.getElementById('image_' + questionId);
+      if (input && input.files.length > 0) {
+        // Convert to base64 for transport
+        const promises = Array.from(input.files).map(file => {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ name: file.name, type: file.type, data: reader.result });
+            reader.readAsDataURL(file);
+          });
+        });
+        Promise.all(promises).then(images => {
+          submitAnswer(questionId, { images });
+        });
+      }
+    }
+    
+    function previewImages(questionId) {
+      const input = document.getElementById('image_' + questionId);
+      const preview = document.getElementById('preview_' + questionId);
+      preview.innerHTML = '';
+      for (const file of input.files) {
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(file);
+        img.style.maxWidth = '100px';
+        img.style.maxHeight = '100px';
+        img.style.margin = '4px';
+        preview.appendChild(img);
+      }
+    }
+    
+    function submitFiles(questionId) {
+      const input = document.getElementById('file_' + questionId);
+      if (input && input.files.length > 0) {
+        const promises = Array.from(input.files).map(file => {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ name: file.name, type: file.type, size: file.size, data: reader.result });
+            reader.readAsDataURL(file);
+          });
+        });
+        Promise.all(promises).then(files => {
+          submitAnswer(questionId, { files });
+        });
+      }
+    }
+    
+    // Drag and drop for ranking
+    document.addEventListener('dragstart', (e) => {
+      if (e.target.classList.contains('rank-item')) {
+        e.dataTransfer.setData('text/plain', e.target.dataset.id);
+        e.target.classList.add('dragging');
+      }
+    });
+    document.addEventListener('dragend', (e) => {
+      if (e.target.classList.contains('rank-item')) {
+        e.target.classList.remove('dragging');
+      }
+    });
+    document.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const dragging = document.querySelector('.rank-item.dragging');
+      const rankList = e.target.closest('.rank-list');
+      if (dragging && rankList) {
+        const siblings = [...rankList.querySelectorAll('.rank-item:not(.dragging)')];
+        const nextSibling = siblings.find(sibling => {
+          const rect = sibling.getBoundingClientRect();
+          return e.clientY < rect.top + rect.height / 2;
+        });
+        rankList.insertBefore(dragging, nextSibling);
+        // Update numbers
+        rankList.querySelectorAll('.rank-item').forEach((item, idx) => {
+          item.querySelector('.rank-num').textContent = idx + 1;
+        });
+      }
+    });
     
     function escapeHtml(text) {
       const div = document.createElement('div');
