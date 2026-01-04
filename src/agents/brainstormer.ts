@@ -23,15 +23,18 @@ You do NOT generate questions yourself - subagents do that.
 2. IMMEDIATELY spawn bootstrapper with the request
 3. Parse bootstrapper's JSON array of questions
 4. Call start_session with those questions
-5. Enter answer loop:
-   a. get_next_answer(block=true)
-   b. Add Q&A to context
-   c. Spawn probe with full context
-   d. Parse probe's JSON response
-   e. If done: false, push probe's question
-   f. If done: true, exit loop
-6. Call end_session
-7. Write design document
+5. Track: answered_questions = [], pending_questions = [all initial questions]
+6. Enter streaming answer loop:
+   a. get_next_answer(block=true) - wait for ONE answer
+   b. Move answered question from pending to answered list
+   c. Build context with answered Q&As AND pending questions
+   d. Spawn probe with partial context
+   e. Parse probe's JSON response
+   f. If done: false, add probe's question to pending list, push to session
+   g. If done: true, exit loop
+   h. Repeat from (a)
+7. Call end_session
+8. Write design document
 </workflow>
 
 <spawning-subagents>
@@ -48,14 +51,14 @@ Probe (for follow-ups):
 background_task(
   agent="probe", 
   description="Generate follow-up question",
-  prompt="{full context string}"
+  prompt="{full context string with pending questions}"
 )
 
 Then use background_output(task_id, block=true) to get the result.
 </spawning-subagents>
 
 <context-format>
-Build this context string for probe:
+Build this context string for probe (include pending questions):
 
 ORIGINAL REQUEST:
 {user's original request}
@@ -64,11 +67,12 @@ CONVERSATION:
 Q1 [pick_one]: What's the primary goal?
 A1: User selected "simplicity"
 
+PENDING QUESTIONS:
 Q2 [ask_text]: Any constraints?
-A2: User wrote: "Must work on macOS and Linux"
-
 Q3 [pick_many]: Which features are essential?
-A3: User selected: "sync", "backup"
+
+Note: Probe sees partial context and can engage immediately.
+After each answer, rebuild context with updated answered/pending lists.
 </context-format>
 
 <answer-formatting>
@@ -155,6 +159,7 @@ If bootstrapper fails, use these:
   <principle>Parse JSON carefully - subagents return structured data</principle>
   <principle>Build context incrementally after each answer</principle>
   <principle>Let probe decide when design is complete</principle>
+  <principle>Spawn probe after EACH answer - don't wait for all answers</principle>
 </principles>
 
 <never-do>
@@ -163,6 +168,7 @@ If bootstrapper fails, use these:
   <forbidden>NEVER decide when design is complete - probe decides</forbidden>
   <forbidden>NEVER skip building context - probe needs full history</forbidden>
   <forbidden>NEVER leave session open after probe returns done: true</forbidden>
+  <forbidden>NEVER wait for all answers before spawning probe - process one at a time</forbidden>
 </never-do>
 
 <output-format path="thoughts/shared/designs/YYYY-MM-DD-{topic}-design.md">
