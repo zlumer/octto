@@ -22,25 +22,10 @@ interface SessionContext {
 }
 
 /**
- * Extract question text from an answer object (tries to find what was asked)
+ * Extract question text - this is a placeholder, actual question comes from session
  */
-function extractQuestionText(answer: unknown): string {
-  if (!answer || typeof answer !== "object") return "Unknown question";
-
-  const a = answer as Record<string, unknown>;
-
-  // For pick_one/pick_many, the selected value might give us context
-  if (a.selected) {
-    return `Choice: ${Array.isArray(a.selected) ? a.selected.join(", ") : a.selected}`;
-  }
-  if (a.text) {
-    return `Text input`;
-  }
-  if (a.choice) {
-    return `Confirmation`;
-  }
-
-  return "Question";
+function extractQuestionText(_answer: unknown): string {
+  return "Question"; // Will be replaced with actual question from session
 }
 
 /**
@@ -245,13 +230,25 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
               if (questionIdMatch && responseMatch) {
                 try {
                   const answer = JSON.parse(responseMatch[1]);
+                  const questionId = questionIdMatch[1];
+
+                  // Get actual question text from session
+                  const session = sessionManager.getSession(effectiveSessionId);
+                  let questionText = "Question";
+                  if (session) {
+                    const question = session.questions.get(questionId);
+                    if (question?.config && typeof question.config === "object" && "question" in question.config) {
+                      questionText = String((question.config as { question: string }).question);
+                    }
+                  }
+
                   context.conversation.push({
-                    questionId: questionIdMatch[1],
-                    questionText: extractQuestionText(answer),
+                    questionId,
+                    questionText,
                     questionType: questionTypeMatch?.[1] || "unknown",
                     answer,
                   });
-                  console.log(`[brainstormer-hook] Added Q&A to context. Total: ${context.conversation.length}`);
+                  console.log(`[brainstormer-hook] Added Q&A: "${questionText}" -> ${JSON.stringify(answer).substring(0, 50)}`);
                 } catch {
                   console.log(`[brainstormer-hook] Could not parse answer JSON`);
                 }
@@ -402,10 +399,10 @@ ${output.output}
                       // Probe said done and no pending questions - push approval question
                       console.log(`[brainstormer-hook] Design complete - pushing approval question`);
 
-                      // Build summary from conversation
-                      const summaryLines = context.conversation.map((entry, i) => {
+                      // Build summary from conversation - show question: answer pairs
+                      const summaryLines = context.conversation.map((entry) => {
                         const answerText = formatAnswerForProbe(entry.questionType, entry.answer);
-                        return `- ${answerText}`;
+                        return `- **${entry.questionText}**: ${answerText}`;
                       });
 
                       const summaryMarkdown = `## Design Summary
