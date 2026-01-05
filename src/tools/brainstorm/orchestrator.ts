@@ -71,6 +71,25 @@ export class BrainstormOrchestrator {
       throw new BrainstormError("invalid_response", "At least one initial question is required");
     }
 
+    // Create a child session for internal LLM calls (probe/summarize)
+    // This avoids deadlock from prompting the same session that's running the tool
+    let llmSessionId: string | undefined;
+    try {
+      const childSession = await this.client.session.create({
+        body: {
+          parentID: this.opencodeSessionId,
+          title: "Brainstorm LLM Session",
+        },
+      });
+      llmSessionId = childSession.data?.id;
+    } catch (e) {
+      // Fall back to parent session if child creation fails
+      llmSessionId = undefined;
+    }
+
+    // Use child session for LLM calls, or parent as fallback
+    const llmSessionForCalls = llmSessionId ?? this.opencodeSessionId;
+
     // Start browser session with initial questions
     const sessionResult = await this.sessionManager.startSession({
       title: "Brainstorming Session",
@@ -132,7 +151,7 @@ export class BrainstormOrchestrator {
         }
 
         // Call probe to get next questions (can return 1-5)
-        const probeResult = await callProbe(this.client, this.opencodeSessionId, request, answers, llmModel);
+        const probeResult = await callProbe(this.client, llmSessionForCalls, request, answers, llmModel);
 
         if (probeResult.done) {
           done = true;
@@ -164,12 +183,20 @@ export class BrainstormOrchestrator {
       await this.sessionManager.endSession(brainstormSessionId);
 
       // Generate summary
-      const summary = await callSummarize(this.client, this.opencodeSessionId, request, context, answers, llmModel);
+      const summary = await callSummarize(this.client, llmSessionForCalls, request, context, answers, llmModel);
+
+      // Clean up child session if we created one
+      if (llmSessionId) {
+        await this.client.session.delete({ path: { id: llmSessionId } }).catch(() => {});
+      }
 
       return { answers, summary };
     } catch (e) {
-      // Clean up session on error
+      // Clean up sessions on error
       await this.sessionManager.endSession(brainstormSessionId).catch(() => {});
+      if (llmSessionId) {
+        await this.client.session.delete({ path: { id: llmSessionId } }).catch(() => {});
+      }
 
       if (e instanceof BrainstormError) throw e;
       throw new BrainstormError("llm_error", `Brainstorming failed: ${e}`, e);
