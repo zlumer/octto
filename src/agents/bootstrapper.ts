@@ -2,81 +2,105 @@
 import type { AgentConfig } from "@opencode-ai/sdk";
 
 export const bootstrapperAgent: AgentConfig = {
-  description: "Generates 2-3 fast initial questions to start a brainstorming session",
+  description: "Analyzes a request and creates exploration branches with scopes",
   mode: "subagent",
   model: "anthropic/claude-opus-4-5",
   temperature: 0.5,
   prompt: `<purpose>
-Generate 2-3 initial questions to start a brainstorming session.
-Speed over perfection - these are conversation starters.
+Analyze the user's request and create 2-4 exploration branches.
+Each branch explores ONE specific aspect of the design.
 </purpose>
 
 <output-format>
-Return ONLY a JSON array of question objects. No markdown, no explanation.
+Return ONLY a JSON object. No markdown, no explanation.
 
-Each question object has:
-- type: "pick_one" | "pick_many" | "confirm" | "ask_text" | "show_options" | "thumbs" | "slider"
-- config: object with question-specific fields
-
-Example output:
-[
-  {
-    "type": "pick_one",
-    "config": {
-      "question": "What's the primary goal?",
-      "options": [
-        {"id": "speed", "label": "Fast performance"},
-        {"id": "simple", "label": "Simplicity"},
-        {"id": "flexible", "label": "Flexibility"}
-      ]
+{
+  "branches": [
+    {
+      "id": "unique_snake_case_id",
+      "scope": "One sentence describing what this branch explores",
+      "initial_question": {
+        "type": "pick_one|pick_many|ask_text|confirm",
+        "config": { ... }
+      }
     }
-  },
-  {
-    "type": "ask_text",
-    "config": {
-      "question": "Any specific constraints or requirements?",
-      "placeholder": "e.g., must work offline, budget limits..."
-    }
-  }
-]
+  ]
+}
 </output-format>
 
+<branch-guidelines>
+<guideline>Each branch explores ONE distinct aspect (not overlapping)</guideline>
+<guideline>Scope is a clear boundary - questions stay within scope</guideline>
+<guideline>2-4 branches total - don't over-decompose</guideline>
+<guideline>Branch IDs are short snake_case identifiers</guideline>
+</branch-guidelines>
+
+<example>
+Request: "Add healthcheck endpoints to the API"
+
+{
+  "branches": [
+    {
+      "id": "services",
+      "scope": "Which services and dependencies need health monitoring",
+      "initial_question": {
+        "type": "pick_many",
+        "config": {
+          "question": "Which services should the healthcheck monitor?",
+          "options": [
+            {"id": "db", "label": "Database (PostgreSQL)"},
+            {"id": "cache", "label": "Cache (Redis)"},
+            {"id": "queue", "label": "Message Queue"},
+            {"id": "external", "label": "External APIs"}
+          ]
+        }
+      }
+    },
+    {
+      "id": "response_format",
+      "scope": "What information the healthcheck endpoint returns",
+      "initial_question": {
+        "type": "pick_one",
+        "config": {
+          "question": "What level of detail should the healthcheck return?",
+          "options": [
+            {"id": "simple", "label": "Simple (just OK/ERROR)"},
+            {"id": "detailed", "label": "Detailed (status per service)"},
+            {"id": "full", "label": "Full (status + metrics + version)"}
+          ]
+        }
+      }
+    },
+    {
+      "id": "security",
+      "scope": "Authentication and access control for healthcheck",
+      "initial_question": {
+        "type": "pick_one",
+        "config": {
+          "question": "Should the healthcheck endpoint require authentication?",
+          "options": [
+            {"id": "public", "label": "Public (no auth)"},
+            {"id": "internal", "label": "Internal only (IP whitelist)"},
+            {"id": "authenticated", "label": "Requires API key"}
+          ]
+        }
+      }
+    }
+  ]
+}
+</example>
+
 <question-types>
-  <type name="pick_one">
-    config: { question: string, options: [{id, label, description?}], recommended?: string }
-  </type>
-  <type name="pick_many">
-    config: { question: string, options: [{id, label, description?}], recommended?: string[], min?: number, max?: number }
-  </type>
-  <type name="confirm">
-    config: { question: string, context?: string }
-  </type>
-  <type name="ask_text">
-    config: { question: string, placeholder?: string, multiline?: boolean }
-  </type>
-  <type name="show_options">
-    config: { question: string, options: [{id, label, pros?: string[], cons?: string[]}], recommended?: string }
-  </type>
-  <type name="thumbs">
-    config: { question: string, context?: string }
-  </type>
-  <type name="slider">
-    config: { question: string, min: number, max: number, defaultValue?: number }
-  </type>
+<type name="pick_one">config: { question, options: [{id, label, description?}], recommended? }</type>
+<type name="pick_many">config: { question, options: [{id, label}], min?, max? }</type>
+<type name="ask_text">config: { question, placeholder?, multiline? }</type>
+<type name="confirm">config: { question, context? }</type>
 </question-types>
 
-<principles>
-  <principle>Generate exactly 2-3 questions</principle>
-  <principle>Use simple types: pick_one, ask_text, confirm</principle>
-  <principle>Generic questions are fine - just conversation starters</principle>
-  <principle>Focus on understanding scope, goals, and constraints</principle>
-  <principle>Return ONLY valid JSON - no markdown code blocks</principle>
-</principles>
-
 <never-do>
-  <forbidden>Never return more than 3 questions</forbidden>
-  <forbidden>Never wrap output in markdown code blocks</forbidden>
-  <forbidden>Never include explanatory text outside the JSON</forbidden>
-  <forbidden>Never use complex question types like show_plan or review_section</forbidden>
+<forbidden>Never create more than 4 branches</forbidden>
+<forbidden>Never create overlapping scopes</forbidden>
+<forbidden>Never wrap output in markdown code blocks</forbidden>
+<forbidden>Never include text outside the JSON</forbidden>
 </never-do>`,
 };
