@@ -96,7 +96,7 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
       }
     },
 
-    "chat.message": async (_input, output) => {
+    "chat.message": async (input, output) => {
       // Check if any text part contains brainstorming keywords
       const hasBrainstormKeyword = output.parts.some((p) => {
         if (p.type === "text" && "text" in p) {
@@ -106,8 +106,20 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
       });
 
       if (hasBrainstormKeyword) {
+        // Get message info for required fields
+        const messageInfo = output.message as { id?: string; sessionID?: string };
+        const sessionID = input.sessionID || messageInfo.sessionID || "";
+        const messageID = messageInfo.id || "";
+
+        if (!sessionID || !messageID) {
+          return; // Can't create valid part without these
+        }
+
         // Inject an agent part to trigger the brainstormer
         output.parts.push({
+          id: `part_brainstorm_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+          sessionID,
+          messageID,
           type: "agent",
           name: "brainstormer",
         } as unknown as (typeof output.parts)[number]);
