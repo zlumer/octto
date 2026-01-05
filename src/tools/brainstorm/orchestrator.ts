@@ -110,19 +110,27 @@ export class BrainstormOrchestrator {
         if (probeResult.done) {
           done = true;
         } else {
-          // Push the new question
-          const pushResult = this.sessionManager.pushQuestion(
-            brainstormSessionId,
-            probeResult.question.type,
-            probeResult.question.config,
-          );
+          // Push all new questions
+          for (const question of probeResult.questions) {
+            // Check if we've hit max questions before pushing
+            if (questionCount >= maxQ) {
+              done = true;
+              break;
+            }
 
-          questionTexts.set(pushResult.question_id, {
-            text: this.extractQuestionText(probeResult.question.config),
-            type: probeResult.question.type,
-          });
+            const pushResult = this.sessionManager.pushQuestion(
+              brainstormSessionId,
+              question.type,
+              question.config,
+            );
 
-          questionCount++;
+            questionTexts.set(pushResult.question_id, {
+              text: this.extractQuestionText(question.config),
+              type: question.type,
+            });
+
+            questionCount++;
+          }
         }
       }
 

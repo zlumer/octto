@@ -127,10 +127,12 @@ describe("Orchestrator Flow Integration", () => {
                       text: JSON.stringify({
                         done: false,
                         reason: "Need more info",
-                        question: {
-                          type: "ask_text",
-                          config: { question: "What else?" },
-                        },
+                        questions: [
+                          {
+                            type: "ask_text",
+                            config: { question: "What else?" },
+                          },
+                        ],
                       }),
                     },
                   ],
@@ -247,6 +249,110 @@ describe("Orchestrator Flow Integration", () => {
           initial_questions: undefined as any,
         }),
       ).rejects.toThrow("At least one initial question is required");
+    });
+  });
+
+  describe("multi-question batching", () => {
+    it("should handle probe returning multiple questions at once", async () => {
+      let probeCount = 0;
+      const mockClient = {
+        session: {
+          prompt: mock(async () => {
+            probeCount++;
+            if (probeCount === 1) {
+              // First probe - return multiple questions
+              return {
+                data: {
+                  parts: [
+                    {
+                      type: "text",
+                      text: JSON.stringify({
+                        done: false,
+                        reason: "Need multiple pieces of info",
+                        questions: [
+                          {
+                            type: "ask_text",
+                            config: { question: "First batch Q1?" },
+                          },
+                          {
+                            type: "confirm",
+                            config: { question: "First batch Q2?" },
+                          },
+                        ],
+                      }),
+                    },
+                  ],
+                },
+              };
+            }
+            if (probeCount === 2) {
+              // Second probe (after answering batch) - done
+              return {
+                data: {
+                  parts: [
+                    {
+                      type: "text",
+                      text: JSON.stringify({ done: true, reason: "Complete" }),
+                    },
+                  ],
+                },
+              };
+            }
+            // Summary call
+            return {
+              data: {
+                parts: [{ type: "text", text: "## Multi-Q Summary" }],
+              },
+            };
+          }),
+        },
+      } as any;
+
+      orchestrator = new BrainstormOrchestrator(sessionManager, mockClient, "test-session");
+
+      const orchestratorPromise = orchestrator.run({
+        context: "Test",
+        request: "Test",
+        initial_questions: [{ type: "confirm", config: { question: "Start?" } }],
+      });
+
+      // Answer loop - keep answering any pending questions
+      let stopAnswerLoop = false;
+      const answerLoop = async () => {
+        while (!stopAnswerLoop) {
+          await new Promise((r) => setTimeout(r, 50));
+          const questions = sessionManager.listQuestions();
+          const pendingQuestions = questions.questions.filter((q) => q.status === "pending");
+          for (const q of pendingQuestions) {
+            const sessions = sessionManager["sessions"];
+            for (const [sid, session] of sessions) {
+              const question = session.questions.get(q.id);
+              if (question && question.status === "pending") {
+                const answer = q.type === "ask_text" ? { text: "Answer" } : { choice: "yes" };
+                sessionManager.handleWsMessage(sid, { type: "response", id: q.id, answer });
+              }
+            }
+          }
+        }
+      };
+
+      answerLoop();
+
+      try {
+        const result = await Promise.race([
+          orchestratorPromise,
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Orchestrator timeout")), 5000)),
+        ]);
+
+        // Should have 2 answers: initial + first from batch (probe said done after that)
+        expect(result.answers.length).toBe(2);
+        expect(result.summary).toContain("Multi-Q Summary");
+        // Verify prompt was called 3 times: probe after Q1, probe after Q2, summary
+        expect(probeCount).toBe(3);
+      } finally {
+        stopAnswerLoop = true;
+        await new Promise((r) => setTimeout(r, 100));
+      }
     });
   });
 

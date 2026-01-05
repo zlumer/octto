@@ -43,26 +43,53 @@ describe("Probe LLM Helper", () => {
       expect((result as { done: true; reason: string }).reason).toBe("Design is complete");
     });
 
-    it("should parse valid continue response", () => {
+    it("should parse valid continue response with questions array", () => {
       const json = JSON.stringify({
         done: false,
         reason: "Need to understand scale",
-        question: {
-          type: "pick_one",
-          config: {
-            question: "Expected traffic?",
-            options: [
-              { id: "low", label: "Low" },
-              { id: "high", label: "High" },
-            ],
+        questions: [
+          {
+            type: "pick_one",
+            config: {
+              question: "Expected traffic?",
+              options: [
+                { id: "low", label: "Low" },
+                { id: "high", label: "High" },
+              ],
+            },
           },
-        },
+        ],
       });
 
       const result = parseProbeResponse(json);
 
       expect(result.done).toBe(false);
-      expect((result as { done: false; question: { type: string } }).question.type).toBe("pick_one");
+      expect((result as { done: false; questions: Array<{ type: string }> }).questions[0].type).toBe("pick_one");
+    });
+
+    it("should parse multiple questions in continue response", () => {
+      const json = JSON.stringify({
+        done: false,
+        reason: "Need to understand multiple aspects",
+        questions: [
+          {
+            type: "pick_one",
+            config: { question: "First question?", options: [{ id: "a", label: "A" }] },
+          },
+          {
+            type: "ask_text",
+            config: { question: "Second question?" },
+          },
+        ],
+      });
+
+      const result = parseProbeResponse(json);
+
+      expect(result.done).toBe(false);
+      const continueResult = result as { done: false; questions: Array<{ type: string }> };
+      expect(continueResult.questions).toHaveLength(2);
+      expect(continueResult.questions[0].type).toBe("pick_one");
+      expect(continueResult.questions[1].type).toBe("ask_text");
     });
 
     it("should throw on invalid JSON", () => {
@@ -73,8 +100,16 @@ describe("Probe LLM Helper", () => {
       expect(() => parseProbeResponse('{"reason": "test"}')).toThrow("missing 'done' boolean field");
     });
 
-    it("should throw on missing question when done is false", () => {
-      expect(() => parseProbeResponse('{"done": false, "reason": "test"}')).toThrow("must include 'question' object");
+    it("should throw on missing questions when done is false", () => {
+      expect(() => parseProbeResponse('{"done": false, "reason": "test"}')).toThrow(
+        "must include 'questions' array",
+      );
+    });
+
+    it("should throw on empty questions array", () => {
+      expect(() => parseProbeResponse('{"done": false, "reason": "test", "questions": []}')).toThrow(
+        "must include at least one question",
+      );
     });
   });
 

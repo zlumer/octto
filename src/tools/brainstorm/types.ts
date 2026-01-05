@@ -48,10 +48,10 @@ export interface BrainstormOutput {
 export interface ProbeResponseContinue {
   done: false;
   reason: string;
-  question: {
+  questions: Array<{
     type: QuestionType;
     config: QuestionConfig;
-  };
+  }>;
 }
 
 /**

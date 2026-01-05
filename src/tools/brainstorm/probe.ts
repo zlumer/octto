@@ -9,7 +9,12 @@ import { DEFAULT_PROBE_MODEL } from "../../constants";
 export const PROBE_SYSTEM_PROMPT = `<purpose>
 Analyze the conversation so far and decide:
 1. Is the design sufficiently explored? (done: true)
-2. If not, what's the ONE most important question to ask next?
+2. If not, what questions should we ask next?
+
+Generate as many questions as you think are necessary to explore the current aspect of the design.
+- If multiple related questions can be asked in parallel, include them all
+- If questions are sequential (answer to Q1 affects Q2), only include Q1
+- Typically generate 1-3 questions per response
 </purpose>
 
 <output-format>
@@ -25,13 +30,15 @@ If more questions needed:
 {
   "done": false,
   "reason": "Brief explanation of what we need to learn",
-  "question": {
-    "type": "pick_one",
-    "config": {
-      "question": "...",
-      "options": [...]
+  "questions": [
+    {
+      "type": "pick_one",
+      "config": {
+        "question": "...",
+        "options": [...]
+      }
     }
-  }
+  ]
 }
 </output-format>
 
@@ -65,6 +72,8 @@ If more questions needed:
   <principle>Set done: true after 8-12 questions typically</principle>
   <principle>Use show_options when presenting architectural choices with tradeoffs</principle>
   <principle>Return ONLY valid JSON - no markdown code blocks</principle>
+  <principle>Generate multiple questions when they can be answered independently</principle>
+  <principle>Keep sequential questions separate - if Q2 depends on Q1's answer, only ask Q1</principle>
 </principles>
 
 <completion-criteria>
@@ -77,10 +86,10 @@ Set done: true when:
 </completion-criteria>
 
 <never-do>
-  <forbidden>Never return more than 1 question at a time</forbidden>
   <forbidden>Never wrap output in markdown code blocks</forbidden>
   <forbidden>Never include explanatory text outside the JSON</forbidden>
   <forbidden>Never ask the same question twice</forbidden>
+  <forbidden>Never return more than 5 questions at once - keep batches manageable</forbidden>
 </never-do>`;
 
 /**
@@ -201,23 +210,41 @@ export function parseProbeResponse(text: string): ProbeResponse {
     };
   }
 
-  // done === false, need question
-  if (!obj.question || typeof obj.question !== "object") {
-    throw new BrainstormError("invalid_response", "Probe response with done=false must include 'question' object");
+  // done === false, need questions
+  if (!Array.isArray(obj.questions)) {
+    throw new BrainstormError("invalid_response", "Probe response with done=false must include 'questions' array");
   }
 
-  const question = obj.question as Record<string, unknown>;
-  if (typeof question.type !== "string" || typeof question.config !== "object") {
-    throw new BrainstormError("invalid_response", "Probe question must have 'type' string and 'config' object");
+  const questions = obj.questions as Array<{ type: string; config: unknown }>;
+
+  if (questions.length === 0) {
+    throw new BrainstormError("invalid_response", "Probe response must include at least one question");
+  }
+
+  // Validate each question
+  const validatedQuestions: Array<{
+    type: import("../../session/types").QuestionType;
+    config: import("../../session/types").QuestionConfig;
+  }> = [];
+
+  for (let i = 0; i < questions.length; i++) {
+    const question = questions[i];
+    if (typeof question.type !== "string" || typeof question.config !== "object") {
+      throw new BrainstormError(
+        "invalid_response",
+        `Question ${i + 1} must have 'type' string and 'config' object`,
+      );
+    }
+    validatedQuestions.push({
+      type: question.type as import("../../session/types").QuestionType,
+      config: question.config as import("../../session/types").QuestionConfig,
+    });
   }
 
   return {
     done: false,
     reason: typeof obj.reason === "string" ? obj.reason : "",
-    question: {
-      type: question.type as import("../../session/types").QuestionType,
-      config: question.config as import("../../session/types").QuestionConfig,
-    },
+    questions: validatedQuestions,
   };
 }
 
