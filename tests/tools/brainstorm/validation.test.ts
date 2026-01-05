@@ -5,6 +5,15 @@ import {
   isProbeResponseDone,
   isProbeResponseContinue,
   isValidQuestionType,
+  isPickOneAnswer,
+  isPickManyAnswer,
+  isConfirmAnswer,
+  isAskTextAnswer,
+  isSliderAnswer,
+  isThumbsAnswer,
+  isRankAnswer,
+  isRateAnswer,
+  isShowOptionsAnswer,
 } from "../../../src/tools/brainstorm/validation";
 
 describe("validation", () => {
@@ -119,6 +128,123 @@ describe("validation", () => {
       expect(isProbeResponse(null)).toBe(false);
       expect(isProbeResponse({})).toBe(false);
       expect(isProbeResponse({ done: "maybe" })).toBe(false);
+    });
+  });
+
+  describe("answer type guards", () => {
+    describe("isPickOneAnswer", () => {
+      it("should return true for valid pick_one answer", () => {
+        expect(isPickOneAnswer({ selected: "opt1" })).toBe(true);
+        expect(isPickOneAnswer({ selected: "opt1", other: "custom" })).toBe(true);
+      });
+
+      it("should return false for invalid answers", () => {
+        expect(isPickOneAnswer(null)).toBe(false);
+        expect(isPickOneAnswer({})).toBe(false);
+        expect(isPickOneAnswer({ selected: 123 })).toBe(false);
+      });
+    });
+
+    describe("isPickManyAnswer", () => {
+      it("should return true for valid pick_many answer", () => {
+        expect(isPickManyAnswer({ selected: ["a", "b"] })).toBe(true);
+        expect(isPickManyAnswer({ selected: [] })).toBe(true);
+      });
+
+      it("should return false for invalid answers", () => {
+        expect(isPickManyAnswer(null)).toBe(false);
+        expect(isPickManyAnswer({ selected: "not-array" })).toBe(false);
+        expect(isPickManyAnswer({ selected: [1, 2] })).toBe(false);
+      });
+    });
+
+    describe("isConfirmAnswer", () => {
+      it("should return true for valid confirm answer", () => {
+        expect(isConfirmAnswer({ choice: "yes" })).toBe(true);
+        expect(isConfirmAnswer({ choice: "no" })).toBe(true);
+        expect(isConfirmAnswer({ choice: "cancel" })).toBe(true);
+      });
+
+      it("should return false for invalid answers", () => {
+        expect(isConfirmAnswer(null)).toBe(false);
+        expect(isConfirmAnswer({ choice: "maybe" })).toBe(false);
+        expect(isConfirmAnswer({})).toBe(false);
+      });
+    });
+
+    describe("isAskTextAnswer", () => {
+      it("should return true for valid ask_text answer", () => {
+        expect(isAskTextAnswer({ text: "hello" })).toBe(true);
+        expect(isAskTextAnswer({ text: "" })).toBe(true);
+      });
+
+      it("should return false for invalid answers", () => {
+        expect(isAskTextAnswer(null)).toBe(false);
+        expect(isAskTextAnswer({ text: 123 })).toBe(false);
+        expect(isAskTextAnswer({})).toBe(false);
+      });
+    });
+
+    describe("isSliderAnswer", () => {
+      it("should return true for valid slider answer", () => {
+        expect(isSliderAnswer({ value: 5 })).toBe(true);
+        expect(isSliderAnswer({ value: 0 })).toBe(true);
+      });
+
+      it("should return false for invalid answers", () => {
+        expect(isSliderAnswer(null)).toBe(false);
+        expect(isSliderAnswer({ value: "5" })).toBe(false);
+        expect(isSliderAnswer({})).toBe(false);
+      });
+    });
+
+    describe("isThumbsAnswer", () => {
+      it("should return true for valid thumbs answer", () => {
+        expect(isThumbsAnswer({ choice: "up" })).toBe(true);
+        expect(isThumbsAnswer({ choice: "down" })).toBe(true);
+      });
+
+      it("should return false for invalid answers", () => {
+        expect(isThumbsAnswer(null)).toBe(false);
+        expect(isThumbsAnswer({ choice: "sideways" })).toBe(false);
+      });
+    });
+
+    describe("isRankAnswer", () => {
+      it("should return true for valid rank answer", () => {
+        expect(isRankAnswer({ ranking: ["a", "b", "c"] })).toBe(true);
+        expect(isRankAnswer({ ranking: [] })).toBe(true);
+      });
+
+      it("should return false for invalid answers", () => {
+        expect(isRankAnswer(null)).toBe(false);
+        expect(isRankAnswer({ ranking: "not-array" })).toBe(false);
+      });
+    });
+
+    describe("isRateAnswer", () => {
+      it("should return true for valid rate answer", () => {
+        expect(isRateAnswer({ ratings: { a: 5, b: 3 } })).toBe(true);
+        expect(isRateAnswer({ ratings: {} })).toBe(true);
+      });
+
+      it("should return false for invalid answers", () => {
+        expect(isRateAnswer(null)).toBe(false);
+        expect(isRateAnswer({ ratings: "not-object" })).toBe(false);
+        expect(isRateAnswer({ ratings: { a: "five" } })).toBe(false);
+      });
+    });
+
+    describe("isShowOptionsAnswer", () => {
+      it("should return true for valid show_options answer", () => {
+        expect(isShowOptionsAnswer({ selected: "opt1" })).toBe(true);
+        expect(isShowOptionsAnswer({ selected: "opt1", feedback: "looks good" })).toBe(true);
+      });
+
+      it("should return false for invalid answers", () => {
+        expect(isShowOptionsAnswer(null)).toBe(false);
+        expect(isShowOptionsAnswer({ selected: 123 })).toBe(false);
+      });
     });
   });
 });
