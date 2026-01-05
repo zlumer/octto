@@ -73,6 +73,34 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
       }
     },
 
+    // Hook to inject probe reminder after get_next_answer returns an answer
+    "tool.execute.after": async (input, output) => {
+      if (input.tool === "get_next_answer") {
+        // Check if we got an actual answer (not timeout/cancelled)
+        if (output.output.includes('"completed": true') || output.output.includes('"status": "answered"')) {
+          // Inject a STRONG reminder to call probe
+          output.output += `
+
+<CRITICAL-ACTION-REQUIRED>
+╔════════════════════════════════════════════════════════════════════╗
+║  YOU MUST IMMEDIATELY SPAWN THE PROBE SUBAGENT NOW!                ║
+║                                                                    ║
+║  DO THIS RIGHT NOW:                                                ║
+║  background_task(                                                  ║
+║    agent="probe",                                                  ║
+║    description="Generate follow-up questions",                     ║
+║    prompt="<context with all Q&As so far>"                        ║
+║  )                                                                 ║
+║                                                                    ║
+║  Then wait for probe result with background_output(task_id, true)  ║
+║  If probe returns done:false, push the new questions               ║
+║  If probe returns done:true, call end_session                      ║
+╚════════════════════════════════════════════════════════════════════╝
+</CRITICAL-ACTION-REQUIRED>`;
+        }
+      }
+    },
+
   };
 };
 
