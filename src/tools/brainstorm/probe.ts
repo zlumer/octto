@@ -1,6 +1,7 @@
 // src/tools/brainstorm/probe.ts
 import type { BrainstormAnswer, ProbeResponse } from "./types";
 import { BrainstormError } from "./types";
+import { DEFAULT_PROBE_MODEL } from "../../constants";
 
 /**
  * System prompt for the probe LLM
@@ -239,7 +240,7 @@ export async function callProbe(
   const context = buildProbeContext(request, answers);
 
   // Parse model string into provider/model
-  const modelParts = (model || "anthropic/claude-sonnet-4").split("/");
+  const modelParts = (model || DEFAULT_PROBE_MODEL).split("/");
   const providerID = modelParts[0];
   const modelID = modelParts.slice(1).join("/");
 

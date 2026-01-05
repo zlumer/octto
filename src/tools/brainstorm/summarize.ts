@@ -1,6 +1,7 @@
 // src/tools/brainstorm/summarize.ts
 import type { BrainstormAnswer } from "./types";
 import { BrainstormError } from "./types";
+import { DEFAULT_PROBE_MODEL } from "../../constants";
 
 /**
  * System prompt for the summary LLM
@@ -131,7 +132,7 @@ export async function callSummarize(
   const summaryContext = buildSummaryContext(request, context, answers);
 
   // Parse model string into provider/model
-  const modelParts = (model || "anthropic/claude-sonnet-4").split("/");
+  const modelParts = (model || DEFAULT_PROBE_MODEL).split("/");
   const providerID = modelParts[0];
   const modelID = modelParts.slice(1).join("/");
 
