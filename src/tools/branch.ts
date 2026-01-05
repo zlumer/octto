@@ -1,17 +1,8 @@
 // src/tools/branch.ts
-import type { ToolConfig } from "@opencode-ai/plugin/tool";
+import { tool } from "@opencode-ai/plugin/tool";
 import type { StateManager } from "../state/manager";
 import type { SessionManager } from "../session/manager";
 import type { QuestionType, QuestionConfig } from "../session/types";
-
-interface BranchInput {
-  id: string;
-  scope: string;
-  initial_question: {
-    type: QuestionType;
-    config: QuestionConfig;
-  };
-}
 
 function generateId(prefix: string): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -23,34 +14,24 @@ function generateId(prefix: string): string {
 }
 
 export function createBranchTools(stateManager: StateManager, sessionManager: SessionManager) {
-  const create_brainstorm: ToolConfig<{ request: string; branches: BranchInput[] }, string> = {
+  const create_brainstorm = tool({
     description: "Create a new brainstorm session with exploration branches",
-    parameters: {
-      type: "object",
-      properties: {
-        request: { type: "string", description: "The original user request" },
-        branches: {
-          type: "array",
-          description: "Branches to explore",
-          items: {
-            type: "object",
-            properties: {
-              id: { type: "string" },
-              scope: { type: "string" },
-              initial_question: {
-                type: "object",
-                properties: {
-                  type: { type: "string" },
-                  config: { type: "object" },
-                },
-              },
-            },
-          },
-        },
-      },
-      required: ["request", "branches"],
+    args: {
+      request: tool.schema.string().describe("The original user request"),
+      branches: tool.schema
+        .array(
+          tool.schema.object({
+            id: tool.schema.string(),
+            scope: tool.schema.string(),
+            initial_question: tool.schema.object({
+              type: tool.schema.string(),
+              config: tool.schema.object({}).passthrough(),
+            }),
+          }),
+        )
+        .describe("Branches to explore"),
     },
-    async execute(args) {
+    execute: async (args) => {
       const sessionId = generateId("ses");
 
       // Create state with branches
@@ -62,8 +43,8 @@ export function createBranchTools(stateManager: StateManager, sessionManager: Se
 
       // Start browser session with first questions from each branch
       const initialQuestions = args.branches.map((b) => ({
-        type: b.initial_question.type,
-        config: b.initial_question.config,
+        type: b.initial_question.type as QuestionType,
+        config: b.initial_question.config as unknown as QuestionConfig,
       }));
 
       const browserSession = await sessionManager.startSession({
@@ -86,9 +67,9 @@ export function createBranchTools(stateManager: StateManager, sessionManager: Se
 
           await stateManager.addQuestionToBranch(sessionId, branch.id, {
             id: questionId,
-            type: branch.initial_question.type,
+            type: branch.initial_question.type as QuestionType,
             text: questionText,
-            config: branch.initial_question.config,
+            config: branch.initial_question.config as unknown as QuestionConfig,
           });
         }
       }
@@ -105,19 +86,15 @@ ${branchList}
 
 Call get_next_answer(session_id="${browserSession.session_id}", block=true) to collect answers.`;
     },
-  };
+  });
 
-  const get_branch_status: ToolConfig<{ session_id: string; branch_id: string }, string> = {
+  const get_branch_status = tool({
     description: "Get the current status and context of a branch",
-    parameters: {
-      type: "object",
-      properties: {
-        session_id: { type: "string", description: "Brainstorm session ID" },
-        branch_id: { type: "string", description: "Branch ID" },
-      },
-      required: ["session_id", "branch_id"],
+    args: {
+      session_id: tool.schema.string().describe("Brainstorm session ID"),
+      branch_id: tool.schema.string().describe("Branch ID"),
     },
-    async execute(args) {
+    execute: async (args) => {
       const state = await stateManager.getSession(args.session_id);
       if (!state) return `Error: Session not found: ${args.session_id}`;
 
@@ -140,23 +117,16 @@ Call get_next_answer(session_id="${browserSession.session_id}", block=true) to c
 **Questions & Answers:**
 ${qas || "(no questions yet)"}`;
     },
-  };
+  });
 
-  const complete_branch: ToolConfig<
-    { session_id: string; branch_id: string; finding: string },
-    string
-  > = {
+  const complete_branch = tool({
     description: "Mark a branch as done with its finding",
-    parameters: {
-      type: "object",
-      properties: {
-        session_id: { type: "string", description: "Brainstorm session ID" },
-        branch_id: { type: "string", description: "Branch ID" },
-        finding: { type: "string", description: "Summary of what was learned" },
-      },
-      required: ["session_id", "branch_id", "finding"],
+    args: {
+      session_id: tool.schema.string().describe("Brainstorm session ID"),
+      branch_id: tool.schema.string().describe("Branch ID"),
+      finding: tool.schema.string().describe("Summary of what was learned"),
     },
-    async execute(args) {
+    execute: async (args) => {
       await stateManager.completeBranch(args.session_id, args.branch_id, args.finding);
       return `## Branch Completed
 
@@ -164,34 +134,21 @@ ${qas || "(no questions yet)"}`;
 **Status:** done
 **Finding:** ${args.finding}`;
     },
-  };
+  });
 
-  const push_branch_question: ToolConfig<
-    {
-      session_id: string;
-      branch_id: string;
-      question: { type: QuestionType; config: QuestionConfig };
-    },
-    string
-  > = {
+  const push_branch_question = tool({
     description: "Push a new question to a branch",
-    parameters: {
-      type: "object",
-      properties: {
-        session_id: { type: "string", description: "Brainstorm session ID" },
-        branch_id: { type: "string", description: "Branch ID" },
-        question: {
-          type: "object",
-          description: "Question to push",
-          properties: {
-            type: { type: "string" },
-            config: { type: "object" },
-          },
-        },
-      },
-      required: ["session_id", "branch_id", "question"],
+    args: {
+      session_id: tool.schema.string().describe("Brainstorm session ID"),
+      branch_id: tool.schema.string().describe("Branch ID"),
+      question: tool.schema
+        .object({
+          type: tool.schema.string(),
+          config: tool.schema.object({}).passthrough(),
+        })
+        .describe("Question to push"),
     },
-    async execute(args) {
+    execute: async (args) => {
       const state = await stateManager.getSession(args.session_id);
       if (!state) return `Error: Session not found: ${args.session_id}`;
       if (!state.browser_session_id) return `Error: No browser session`;
@@ -203,14 +160,18 @@ ${qas || "(no questions yet)"}`;
           : "Question";
 
       // Push to browser
-      sessionManager.pushQuestion(state.browser_session_id, args.question.type, args.question.config);
+      sessionManager.pushQuestion(
+        state.browser_session_id,
+        args.question.type as QuestionType,
+        args.question.config as unknown as QuestionConfig,
+      );
 
       // Record in state
       await stateManager.addQuestionToBranch(args.session_id, args.branch_id, {
         id: questionId,
-        type: args.question.type,
+        type: args.question.type as QuestionType,
         text: questionText,
-        config: args.question.config,
+        config: args.question.config as unknown as QuestionConfig,
       });
 
       return `## Question Pushed
@@ -221,18 +182,14 @@ ${qas || "(no questions yet)"}`;
 
 Call get_next_answer to collect the response.`;
     },
-  };
+  });
 
-  const get_session_summary: ToolConfig<{ session_id: string }, string> = {
+  const get_session_summary = tool({
     description: "Get summary of all branches and their findings",
-    parameters: {
-      type: "object",
-      properties: {
-        session_id: { type: "string", description: "Brainstorm session ID" },
-      },
-      required: ["session_id"],
+    args: {
+      session_id: tool.schema.string().describe("Brainstorm session ID"),
     },
-    async execute(args) {
+    execute: async (args) => {
       const state = await stateManager.getSession(args.session_id);
       if (!state) return `Error: Session not found: ${args.session_id}`;
 
@@ -254,18 +211,14 @@ Call get_next_answer to collect the response.`;
 
 ${branchSummaries}`;
     },
-  };
+  });
 
-  const end_brainstorm: ToolConfig<{ session_id: string }, string> = {
+  const end_brainstorm = tool({
     description: "End a brainstorm session and get final summary",
-    parameters: {
-      type: "object",
-      properties: {
-        session_id: { type: "string", description: "Brainstorm session ID" },
-      },
-      required: ["session_id"],
+    args: {
+      session_id: tool.schema.string().describe("Brainstorm session ID"),
     },
-    async execute(args) {
+    execute: async (args) => {
       const state = await stateManager.getSession(args.session_id);
       if (!state) return `Error: Session not found: ${args.session_id}`;
 
@@ -295,7 +248,7 @@ ${findings}
 
 Write the design document based on these findings.`;
     },
-  };
+  });
 
   return {
     create_brainstorm,
