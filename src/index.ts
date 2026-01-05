@@ -214,21 +214,21 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
               if (context.awaitingApproval) {
                 console.log(`[brainstormer-hook] Processing approval response`);
 
-                // Extract the answer
+                // Extract the answer (review_section returns {decision: "approve"|"revise", feedback?: string})
                 const responseMatch = output.output.match(/\*\*Response:\*\*\s*```json\s*([\s\S]*?)\s*```/);
                 if (responseMatch) {
                   try {
-                    const answer = JSON.parse(responseMatch[1]) as { choice?: string };
-                    if (answer.choice === "yes") {
+                    const answer = JSON.parse(responseMatch[1]) as { decision?: string; feedback?: string };
+                    if (answer.decision === "approve") {
                       console.log(`[brainstormer-hook] User APPROVED the design`);
                       context.awaitingApproval = false;
                       output.output += `\n\n## Design Approved!\nUser approved the design. You may now end the session and write the design document.`;
                       return; // Don't trigger probe again
                     } else {
-                      console.log(`[brainstormer-hook] User REJECTED - needs changes`);
+                      console.log(`[brainstormer-hook] User requested REVISION`);
                       context.awaitingApproval = false;
-                      // Continue with probe to get more questions
-                      output.output += `\n\n## Changes Requested\nUser requested changes. Continuing brainstorming...`;
+                      const feedbackNote = answer.feedback ? `\nFeedback: ${answer.feedback}` : "";
+                      output.output += `\n\n## Revision Requested\nUser requested changes.${feedbackNote}\nContinuing brainstorming to address feedback...`;
                       // Fall through to trigger probe again
                     }
                   } catch {
@@ -405,17 +405,28 @@ ${output.output}
                       // Build summary from conversation
                       const summaryLines = context.conversation.map((entry, i) => {
                         const answerText = formatAnswerForProbe(entry.questionType, entry.answer);
-                        return `${i + 1}. ${answerText}`;
+                        return `- ${answerText}`;
                       });
 
-                      const summaryText = `## Brainstorming Summary\n\n**Reason:** ${probeResult.reason || "Design exploration complete"}\n\n**Decisions made:**\n${summaryLines.join("\n")}\n\nDo you approve this design direction?`;
+                      const summaryMarkdown = `## Design Summary
 
-                      // Push approval question
-                      const approvalResult = sessionManager.pushQuestion(effectiveSessionId, "confirm", {
-                        question: "Approve this design?",
-                        context: summaryText,
-                        yesLabel: "Approve & Continue",
-                        noLabel: "Need Changes",
+**${probeResult.reason || "Design exploration complete"}**
+
+### Decisions Made
+
+${summaryLines.join("\n")}
+
+### Next Steps
+
+If you approve, the brainstorming session will end and a design document will be created based on these decisions.
+
+If you need changes, we'll continue refining the design.`;
+
+                      // Push approval question using review_section for better formatting
+                      const approvalResult = sessionManager.pushQuestion(effectiveSessionId, "review_section", {
+                        question: "Review & Approve Design",
+                        content: summaryMarkdown,
+                        context: "Review the brainstorming summary and approve or request changes.",
                       });
 
                       // Mark that we're awaiting approval
