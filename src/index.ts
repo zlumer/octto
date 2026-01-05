@@ -68,4 +68,3 @@ const BrainstormerPlugin: Plugin = async (ctx) => {
 export default BrainstormerPlugin;
 
 export type * from "./types";
-export type * from "./tools/brainstorm/types";
