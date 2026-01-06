@@ -24,11 +24,18 @@ export function formatFindingsList(state: BrainstormState): string {
     .join("\n");
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function formatQASummary(branch: Branch): string {
   return branch.questions
-    .filter((q) => q.answer !== undefined)
+    .filter((q) => q.answer !== undefined && q.answer !== null)
     .map((q) => {
-      const ans = q.answer as Record<string, unknown>;
+      if (!isRecord(q.answer)) {
+        return `- **${q.text}**\n  → ${String(q.answer)}`;
+      }
+      const ans = q.answer;
       const text = ans.selected || ans.choice || ans.text || JSON.stringify(ans);
       return `- **${q.text}**\n  → ${text}`;
     })
