@@ -6,7 +6,6 @@ import type { QuestionType, QuestionConfig } from "../session/types";
 export function createPushQuestionTool(manager: SessionManager) {
   const push_question = tool({
     description: `Push a question to the session queue. This is the generic tool for adding any question type.
-Use this when you receive questions from the probe subagent.
 The question will appear in the browser for the user to answer.`,
     args: {
       session_id: tool.schema.string().describe("Session ID from start_session"),

@@ -53,7 +53,6 @@ Write to docs/plans/YYYY-MM-DD-{topic}-design.md
 <never-do>
 <forbidden>NEVER use start_session directly - always use create_brainstorm</forbidden>
 <forbidden>NEVER manually loop with get_next_answer - use await_brainstorm_complete instead</forbidden>
-<forbidden>NEVER call probe agent manually - await_brainstorm_complete handles this internally</forbidden>
 </never-do>
 
 <design-document-format>
