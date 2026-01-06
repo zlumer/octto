@@ -1,10 +1,11 @@
 // src/index.ts
 
-import { agents } from "@agents";
-import { loadCustomConfig } from "@config";
 import type { Plugin } from "@opencode-ai/plugin";
-import { createSessionStore } from "@session";
-import { createOcttoTools } from "@tools";
+
+import { agents } from "@/agents";
+import { loadCustomConfig } from "@/config";
+import { createSessionStore } from "@/session";
+import { createOcttoTools } from "@/tools";
 
 const Octto: Plugin = async (ctx) => {
   const customConfig = await loadCustomConfig(agents);
@@ -37,7 +38,8 @@ const Octto: Plugin = async (ctx) => {
     event: async ({ event }) => {
       if (event.type !== "session.deleted") return;
 
-      const id = (event.properties as { info?: { id?: string } })?.info?.id;
+      const props = event.properties as { info?: { id?: string } };
+      const id = props?.info?.id;
       const octtoSessions = id && tracked.get(id);
 
       if (octtoSessions) {

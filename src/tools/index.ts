@@ -1,9 +1,9 @@
 // src/tools/index.ts
 
 import type { OpencodeClient } from "@opencode-ai/sdk";
-import type { SessionStore } from "@session";
-import { createStateStore } from "@state";
 
+import type { SessionStore } from "@/session";
+import { createStateStore } from "@/state";
 import { createBranchTools } from "./branch";
 import { createPushQuestionTool } from "./push-question";
 import { createQuestionTools } from "./questions";

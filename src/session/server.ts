@@ -1,7 +1,6 @@
 import type { Server, ServerWebSocket } from "bun";
 
-import { getHtmlBundle } from "@ui";
-
+import { getHtmlBundle } from "@/ui";
 import type { SessionStore } from "./sessions";
 import type { WsClientMessage } from "./types";
 

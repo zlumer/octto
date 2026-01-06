@@ -15,12 +15,7 @@
     "types": ["bun-types"],
     "baseUrl": ".",
     "paths": {
-      "@agents": ["src/agents"],
-      "@config": ["src/config"],
-      "@session": ["src/session"],
-      "@state": ["src/state"],
-      "@tools": ["src/tools"],
-      "@ui": ["src/ui"]
+      "@/*": ["src/*"]
     }
   },
   "include": ["src/**/*"],

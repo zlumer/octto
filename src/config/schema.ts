@@ -1,4 +1,4 @@
-import { AGENTS } from "@agents";
+import { AGENTS } from "@/agents";
 import * as v from "valibot";
 
 export const AgentOverrideSchema = v.partial(

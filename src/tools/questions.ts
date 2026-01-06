@@ -1,7 +1,7 @@
 // src/tools/questions.ts
 import { tool } from "@opencode-ai/plugin/tool";
-import type { SessionStore } from "@session";
 
+import type { SessionStore } from "@/session";
 import type { ConfirmConfig, PickManyConfig, PickOneConfig, RankConfig, RateConfig } from "../types";
 
 export function createQuestionTools(sessions: SessionStore) {

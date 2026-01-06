@@ -1,8 +1,8 @@
 // src/tools/branch.ts
 import { tool } from "@opencode-ai/plugin/tool";
-import type { QuestionConfig, QuestionType, SessionStore } from "@session";
-import type { StateStore } from "@state";
 
+import type { QuestionConfig, QuestionType, SessionStore } from "@/session";
+import type { StateStore } from "@/state";
 import { evaluateBranch } from "./probe-logic";
 
 function generateId(prefix: string): string {
