@@ -154,14 +154,25 @@ Response format: { ratings: Record<string, number> } where key is option id, val
   };
 }
 
-// Input tools (ask_text, ask_image, ask_file, ask_code)
-function createInputTools(sessions: SessionStore) {
-  const ask_text = tool({
+// Input tools using factory
+function createInputTools(sessions: SessionStore): OcttoTools {
+  const createTool = createQuestionToolFactory(sessions);
+
+  interface TextConfig {
+    session_id: string;
+    question: string;
+    placeholder?: string;
+    context?: string;
+    multiline?: boolean;
+    minLength?: number;
+    maxLength?: number;
+  }
+
+  const ask_text = createTool<TextConfig>({
+    type: "ask_text",
     description: `Ask user for text input (single or multi-line).
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { text: string }`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
       placeholder: tool.schema.string().optional().describe("Placeholder text"),
       context: tool.schema.string().optional().describe("Instructions/context"),
@@ -169,55 +180,55 @@ Response format: { text: string }`,
       minLength: tool.schema.number().optional().describe("Minimum text length"),
       maxLength: tool.schema.number().optional().describe("Maximum text length"),
     },
-    execute: async (args) => {
-      try {
-        const config = {
-          question: args.question,
-          placeholder: args.placeholder,
-          context: args.context,
-          multiline: args.multiline,
-          minLength: args.minLength,
-          maxLength: args.maxLength,
-        };
-        const result = sessions.pushQuestion(args.session_id, "ask_text", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      placeholder: args.placeholder,
+      context: args.context,
+      multiline: args.multiline,
+      minLength: args.minLength,
+      maxLength: args.maxLength,
+    }),
   });
 
-  const ask_image = tool({
-    description: `Ask user to upload/paste image(s).
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+  interface ImageConfig {
+    session_id: string;
+    question: string;
+    context?: string;
+    multiple?: boolean;
+    maxImages?: number;
+  }
+
+  const ask_image = createTool<ImageConfig>({
+    type: "ask_image",
+    description: "Ask user to upload/paste image(s).",
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
       context: tool.schema.string().optional().describe("Instructions/context"),
       multiple: tool.schema.boolean().optional().describe("Allow multiple images"),
       maxImages: tool.schema.number().optional().describe("Maximum number of images"),
     },
-    execute: async (args) => {
-      try {
-        const config = {
-          question: args.question,
-          context: args.context,
-          multiple: args.multiple,
-          maxImages: args.maxImages,
-        };
-        const result = sessions.pushQuestion(args.session_id, "ask_image", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      context: args.context,
+      multiple: args.multiple,
+      maxImages: args.maxImages,
+    }),
   });
 
-  const ask_file = tool({
-    description: `Ask user to upload file(s).
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+  interface FileConfig {
+    session_id: string;
+    question: string;
+    context?: string;
+    multiple?: boolean;
+    maxFiles?: number;
+    accept?: string[];
+    maxSize?: number;
+  }
+
+  const ask_file = createTool<FileConfig>({
+    type: "ask_file",
+    description: "Ask user to upload file(s).",
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
       context: tool.schema.string().optional().describe("Instructions/context"),
       multiple: tool.schema.boolean().optional().describe("Allow multiple files"),
@@ -225,239 +236,233 @@ Returns immediately with question_id. Use get_answer to retrieve response.`,
       accept: tool.schema.array(tool.schema.string()).optional().describe("Allowed file types"),
       maxSize: tool.schema.number().optional().describe("Maximum file size in bytes"),
     },
-    execute: async (args) => {
-      try {
-        const config = {
-          question: args.question,
-          context: args.context,
-          multiple: args.multiple,
-          maxFiles: args.maxFiles,
-          accept: args.accept,
-          maxSize: args.maxSize,
-        };
-        const result = sessions.pushQuestion(args.session_id, "ask_file", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      context: args.context,
+      multiple: args.multiple,
+      maxFiles: args.maxFiles,
+      accept: args.accept,
+      maxSize: args.maxSize,
+    }),
   });
 
-  const ask_code = tool({
-    description: `Ask user for code input with syntax highlighting.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+  interface CodeConfig {
+    session_id: string;
+    question: string;
+    context?: string;
+    language?: string;
+    placeholder?: string;
+  }
+
+  const ask_code = createTool<CodeConfig>({
+    type: "ask_code",
+    description: "Ask user for code input with syntax highlighting.",
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
       context: tool.schema.string().optional().describe("Instructions/context"),
       language: tool.schema.string().optional().describe("Programming language for highlighting"),
       placeholder: tool.schema.string().optional().describe("Placeholder code"),
     },
-    execute: async (args) => {
-      try {
-        const config = {
-          question: args.question,
-          context: args.context,
-          language: args.language,
-          placeholder: args.placeholder,
-        };
-        const result = sessions.pushQuestion(args.session_id, "ask_code", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      context: args.context,
+      language: args.language,
+      placeholder: args.placeholder,
+    }),
   });
 
   return { ask_text, ask_image, ask_file, ask_code };
 }
 
-// Presentation/Feedback tools (show_diff, show_plan, show_options, review_section)
-function createPresentationTools(sessions: SessionStore) {
-  const show_diff = tool({
-    description: `Show a diff and ask user to approve/reject/edit.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+// Presentation tools using factory
+function createPresentationTools(sessions: SessionStore): OcttoTools {
+  const createTool = createQuestionToolFactory(sessions);
+
+  interface DiffConfig {
+    session_id: string;
+    question: string;
+    before: string;
+    after: string;
+    filePath?: string;
+    language?: string;
+  }
+
+  const show_diff = createTool<DiffConfig>({
+    type: "show_diff",
+    description: "Show a diff and ask user to approve/reject/edit.",
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Title/description of the change"),
       before: tool.schema.string().describe("Original content"),
       after: tool.schema.string().describe("Modified content"),
       filePath: tool.schema.string().optional().describe("File path for context"),
       language: tool.schema.string().optional().describe("Language for syntax highlighting"),
     },
-    execute: async (args) => {
-      try {
-        const config = {
-          question: args.question,
-          before: args.before,
-          after: args.after,
-          filePath: args.filePath,
-          language: args.language,
-        };
-        const result = sessions.pushQuestion(args.session_id, "show_diff", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      before: args.before,
+      after: args.after,
+      filePath: args.filePath,
+      language: args.language,
+    }),
   });
 
-  const show_plan = tool({
+  const sectionSchema = tool.schema.array(
+    tool.schema.object({
+      id: tool.schema.string().describe("Section identifier"),
+      title: tool.schema.string().describe("Section title"),
+      content: tool.schema.string().describe("Section content (markdown)"),
+    }),
+  );
+
+  interface PlanConfig {
+    session_id: string;
+    question: string;
+    sections?: Array<{ id: string; title: string; content: string }>;
+    markdown?: string;
+  }
+
+  const show_plan = createTool<PlanConfig>({
+    type: "show_plan",
     description: `Show a plan/document for user review with annotations.
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { approved: boolean, annotations?: Record<sectionId, string> }`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Plan title"),
-      sections: tool.schema
-        .array(
-          tool.schema.object({
-            id: tool.schema.string().describe("Section identifier"),
-            title: tool.schema.string().describe("Section title"),
-            content: tool.schema.string().describe("Section content (markdown)"),
-          }),
-        )
-        .optional()
-        .describe("Plan sections"),
+      sections: sectionSchema.optional().describe("Plan sections"),
       markdown: tool.schema.string().optional().describe("Full markdown (alternative to sections)"),
     },
-    execute: async (args) => {
-      try {
-        const config = {
-          question: args.question,
-          sections: args.sections || [],
-          markdown: args.markdown,
-        };
-        const result = sessions.pushQuestion(args.session_id, "show_plan", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      sections: args.sections || [],
+      markdown: args.markdown,
+    }),
   });
 
-  const show_options = tool({
+  const prosConsOptionSchema = tool.schema.array(
+    tool.schema.object({
+      id: tool.schema.string().describe("Unique option identifier"),
+      label: tool.schema.string().describe("Display label"),
+      description: tool.schema.string().optional().describe("Optional description"),
+      pros: tool.schema.array(tool.schema.string()).optional().describe("Advantages"),
+      cons: tool.schema.array(tool.schema.string()).optional().describe("Disadvantages"),
+    }),
+  );
+
+  interface ShowOptionsConfig {
+    session_id: string;
+    question: string;
+    options: Array<{ id: string; label: string; description?: string; pros?: string[]; cons?: string[] }>;
+    recommended?: string;
+    allowFeedback?: boolean;
+  }
+
+  const show_options = createTool<ShowOptionsConfig>({
+    type: "show_options",
     description: `Show options with pros/cons for user to select.
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { selected: string, feedback?: string } where selected is the chosen option id.`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
-      options: tool.schema
-        .array(
-          tool.schema.object({
-            id: tool.schema.string().describe("Unique option identifier"),
-            label: tool.schema.string().describe("Display label"),
-            description: tool.schema.string().optional().describe("Optional description"),
-            pros: tool.schema.array(tool.schema.string()).optional().describe("Advantages"),
-            cons: tool.schema.array(tool.schema.string()).optional().describe("Disadvantages"),
-          }),
-        )
-        .describe("Options with pros/cons"),
+      options: prosConsOptionSchema.describe("Options with pros/cons"),
       recommended: tool.schema.string().optional().describe("Recommended option id"),
       allowFeedback: tool.schema.boolean().optional().describe("Allow text feedback with selection"),
     },
-    execute: async (args) => {
-      try {
-        if (!args.options || args.options.length === 0) {
-          return `Failed: options array must not be empty`;
-        }
-        const config = {
-          question: args.question,
-          options: args.options,
-          recommended: args.recommended,
-          allowFeedback: args.allowFeedback,
-        };
-        const result = sessions.pushQuestion(args.session_id, "show_options", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
+    validate: (args) => {
+      if (!args.options || args.options.length === 0) return "options array must not be empty";
+      return null;
     },
+    toConfig: (args) => ({
+      question: args.question,
+      options: args.options,
+      recommended: args.recommended,
+      allowFeedback: args.allowFeedback,
+    }),
   });
 
-  const review_section = tool({
-    description: `Show content section for user review with inline feedback.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+  interface ReviewConfig {
+    session_id: string;
+    question: string;
+    content: string;
+    context?: string;
+  }
+
+  const review_section = createTool<ReviewConfig>({
+    type: "review_section",
+    description: "Show content section for user review with inline feedback.",
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Section title"),
       content: tool.schema.string().describe("Section content (markdown)"),
       context: tool.schema.string().optional().describe("Context about what to review"),
     },
-    execute: async (args) => {
-      try {
-        const config = {
-          question: args.question,
-          content: args.content,
-          context: args.context,
-        };
-        const result = sessions.pushQuestion(args.session_id, "review_section", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      content: args.content,
+      context: args.context,
+    }),
   });
 
   return { show_diff, show_plan, show_options, review_section };
 }
 
-// Quick tools (thumbs, emoji_react, slider)
-function createQuickTools(sessions: SessionStore) {
-  const thumbs = tool({
+// Quick tools using factory
+function createQuickTools(sessions: SessionStore): OcttoTools {
+  const createTool = createQuestionToolFactory(sessions);
+
+  interface ThumbsConfig {
+    session_id: string;
+    question: string;
+    context?: string;
+  }
+
+  const thumbs = createTool<ThumbsConfig>({
+    type: "thumbs",
     description: `Ask user for quick thumbs up/down feedback.
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { choice: "up" | "down" }`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
       context: tool.schema.string().optional().describe("Context to show"),
     },
-    execute: async (args) => {
-      try {
-        const config = {
-          question: args.question,
-          context: args.context,
-        };
-        const result = sessions.pushQuestion(args.session_id, "thumbs", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      context: args.context,
+    }),
   });
 
-  const emoji_react = tool({
-    description: `Ask user to react with an emoji.
-Returns immediately with question_id. Use get_answer to retrieve response.`,
+  interface EmojiConfig {
+    session_id: string;
+    question: string;
+    context?: string;
+    emojis?: string[];
+  }
+
+  const emoji_react = createTool<EmojiConfig>({
+    type: "emoji_react",
+    description: "Ask user to react with an emoji.",
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
       context: tool.schema.string().optional().describe("Context to show"),
       emojis: tool.schema.array(tool.schema.string()).optional().describe("Available emoji options"),
     },
-    execute: async (args) => {
-      try {
-        const config = {
-          question: args.question,
-          context: args.context,
-          emojis: args.emojis,
-        };
-        const result = sessions.pushQuestion(args.session_id, "emoji_react", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
-    },
+    toConfig: (args) => ({
+      question: args.question,
+      context: args.context,
+      emojis: args.emojis,
+    }),
   });
 
-  const slider = tool({
+  interface SliderConfig {
+    session_id: string;
+    question: string;
+    min: number;
+    max: number;
+    step?: number;
+    defaultValue?: number;
+    context?: string;
+  }
+
+  const slider = createTool<SliderConfig>({
+    type: "slider",
     description: `Ask user to select a value on a numeric slider.
-Returns immediately with question_id. Use get_answer to retrieve response.
 Response format: { value: number }`,
     args: {
-      session_id: tool.schema.string().describe("Session ID from start_session"),
       question: tool.schema.string().describe("Question to display"),
       min: tool.schema.number().describe("Minimum value"),
       max: tool.schema.number().describe("Maximum value"),
@@ -465,25 +470,18 @@ Response format: { value: number }`,
       defaultValue: tool.schema.number().optional().describe("Default value"),
       context: tool.schema.string().optional().describe("Instructions/context"),
     },
-    execute: async (args) => {
-      try {
-        if (args.min >= args.max) {
-          return `Failed: min (${args.min}) must be less than max (${args.max})`;
-        }
-        const config = {
-          question: args.question,
-          min: args.min,
-          max: args.max,
-          step: args.step,
-          defaultValue: args.defaultValue,
-          context: args.context,
-        };
-        const result = sessions.pushQuestion(args.session_id, "slider", config);
-        return `Question pushed: ${result.question_id}\nUse get_answer("${result.question_id}") to retrieve response.`;
-      } catch (error) {
-        return `Failed: ${error instanceof Error ? error.message : String(error)}`;
-      }
+    validate: (args) => {
+      if (args.min >= args.max) return `min (${args.min}) must be less than max (${args.max})`;
+      return null;
     },
+    toConfig: (args) => ({
+      question: args.question,
+      min: args.min,
+      max: args.max,
+      step: args.step,
+      defaultValue: args.defaultValue,
+      context: args.context,
+    }),
   });
 
   return { thumbs, emoji_react, slider };

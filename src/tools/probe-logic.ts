@@ -4,6 +4,10 @@
 import type { QuestionConfig } from "@/session";
 import type { Branch } from "@/state";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export interface ProbeResult {
   done: boolean;
   reason: string;
@@ -45,8 +49,8 @@ export function evaluateBranch(branch: Branch): ProbeResult {
 
   // Rule 3: Check if user explicitly confirmed/declined to continue
   const lastAnswer = answeredQuestions[answeredQuestions.length - 1];
-  if (lastAnswer) {
-    const ans = lastAnswer.answer as Record<string, unknown>;
+  if (lastAnswer && isRecord(lastAnswer.answer)) {
+    const ans = lastAnswer.answer;
 
     // If user confirmed "ready to proceed", mark done
     if (ans.choice === "yes" && lastAnswer.type === "confirm") {
@@ -97,10 +101,9 @@ export function evaluateBranch(branch: Branch): ProbeResult {
  */
 function synthesizeFinding(branch: Branch): string {
   const answers = branch.questions
-    .filter((q) => q.answer !== undefined)
+    .filter((q) => q.answer !== undefined && isRecord(q.answer))
     .map((q) => {
-      const ans = q.answer as Record<string, unknown>;
-      return extractAnswerSummary(q.text, ans);
+      return extractAnswerSummary(q.text, q.answer as Record<string, unknown>);
     });
 
   if (answers.length === 0) {
@@ -184,7 +187,8 @@ function generateContextualFollowUp(
 
   // After first answer: ask about constraints/requirements
   if (answeredCount === 1) {
-    const firstAnswer = answeredQuestions[0].answer as Record<string, unknown>;
+    const firstAnswer = answeredQuestions[0].answer;
+    if (!isRecord(firstAnswer)) return null;
     const chosenOption = extractAnswerSummary("", firstAnswer);
 
     // Contextual follow-up based on what they chose
