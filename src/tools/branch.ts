@@ -261,34 +261,40 @@ ${findings}
 Some branches still exploring. Call await_brainstorm_complete again to continue.`;
       }
 
-      // Build review summary
-      const findingsSummary = finalState.branch_order
-        .map((id) => {
+      // Build sections for show_plan - one per branch plus summary
+      const sections = [
+        {
+          id: "summary",
+          title: "Original Request",
+          content: finalState.request,
+        },
+        ...finalState.branch_order.map((id) => {
           const b = finalState.branches[id];
-          return `### ${b.scope}\n${b.finding || "No finding"}`;
-        })
-        .join("\n\n");
+          const qaSummary = b.questions
+            .filter((q) => q.answer !== undefined)
+            .map((q) => {
+              const ans = q.answer as Record<string, unknown>;
+              const answerText = ans.selected || ans.choice || ans.text || JSON.stringify(ans);
+              return `- **${q.text}**\n  → ${answerText}`;
+            })
+            .join("\n");
 
-      const reviewContent = `# Design Summary
+          return {
+            id,
+            title: b.scope,
+            content: `**Finding:** ${b.finding || "No finding"}\n\n**Discussion:**\n${qaSummary || "(no questions answered)"}`,
+          };
+        }),
+      ];
 
-**Original Request:** ${finalState.request}
-
-## Findings by Branch
-
-${findingsSummary}
-
----
-*Review the findings above. Approve to proceed with design document, or request changes.*`;
-
-      // Push review question to browser
-      console.log(`[await_brainstorm_complete] Pushing review for approval`);
+      // Push show_plan to browser
+      console.log(`[await_brainstorm_complete] Pushing plan review for approval`);
       const { question_id: reviewQuestionId } = sessionManager.pushQuestion(
         args.browser_session_id,
-        "review_section",
+        "show_plan",
         {
-          question: "Review & Approve Design",
-          content: reviewContent,
-          context: "Review the brainstorming summary and approve or request changes.",
+          question: "Review Design Plan",
+          sections,
         } as QuestionConfig,
       );
 
@@ -305,9 +311,16 @@ ${findingsSummary}
 
       if (reviewResult.completed && reviewResult.response) {
         const response = reviewResult.response as Record<string, unknown>;
-        // review_section typically returns { approved: boolean, feedback?: string }
+        // show_plan returns { approved: boolean, annotations?: Record<sectionId, string> }
         approved = response.approved === true || response.choice === "yes";
-        feedback = String(response.feedback || response.text || "");
+        const annotations = response.annotations as Record<string, string> | undefined;
+        if (annotations) {
+          feedback = Object.entries(annotations)
+            .map(([section, note]) => `[${section}] ${note}`)
+            .join("\n");
+        } else {
+          feedback = String(response.feedback || response.text || "");
+        }
       }
 
       console.log(`[await_brainstorm_complete] Review result: approved=${approved}`);
