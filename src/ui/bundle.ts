@@ -397,6 +397,18 @@ export function getHtmlBundle(): string {
       margin-top: 1rem;
     }
 
+    .branch-badge {
+      display: inline-block;
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--foreground-muted);
+      background: var(--surface-elevated);
+      border: 1px solid var(--border-subtle);
+      padding: 0.25rem 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
     .thinking {
       text-align: center;
       padding: 2rem;
@@ -770,9 +782,16 @@ export function getHtmlBundle(): string {
       // Show answered questions (collapsed or expanded)
       for (const q of answered) {
         const isExpanded = expandedAnswers.has(q.id);
+        // Extract branch name from context
+        let branchName = '';
+        const ctx = q.config.context || '';
+        const branchMatch = ctx.match(/^\\[([^\\]]+)\\]/);
+        if (branchMatch) branchName = branchMatch[1];
+
         html += '<div class="card card-answered' + (isExpanded ? ' expanded' : '') + '" data-qid="' + q.id + '">';
         html += '<div class="card-answered-header" onclick="toggleAnswered(\\'' + q.id + '\\')">';
         html += '<span class="check">[OK]</span>';
+        if (branchName) html += '<span class="branch-badge" style="margin-right: 0.5rem; margin-bottom: 0;">' + escapeHtml(branchName) + '</span>';
         html += '<span>' + escapeHtml(q.config.question) + '</span>';
         html += '<span class="toggle">' + (isExpanded ? '▲ collapse' : '▼ view') + '</span>';
         html += '</div>';
@@ -808,7 +827,23 @@ export function getHtmlBundle(): string {
     function renderQuestion(q) {
       const config = q.config;
       let html = '<div class="card">';
+
+      // Extract branch from context if present: "[Branch Scope] rest of context"
+      let branchName = '';
+      let remainingContext = config.context || '';
+      const branchMatch = remainingContext.match(/^\\[([^\\]]+)\\]\\s*/);
+      if (branchMatch) {
+        branchName = branchMatch[1];
+        remainingContext = remainingContext.substring(branchMatch[0].length);
+      }
+
+      if (branchName) {
+        html += '<div class="branch-badge">' + escapeHtml(branchName) + '</div>';
+      }
       html += '<div class="question-text">' + escapeHtml(config.question) + '</div>';
+      if (remainingContext) {
+        html += '<div class="context">' + escapeHtml(remainingContext) + '</div>';
+      }
       
       switch (q.questionType) {
         case 'pick_one':
@@ -906,11 +941,7 @@ export function getHtmlBundle(): string {
     function renderConfirm(q) {
       const yesLabel = q.config.yesLabel || 'Yes';
       const noLabel = q.config.noLabel || 'No';
-      let html = '';
-      if (q.config.context) {
-        html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
-      }
-      html += '<div class="btn-group">';
+      let html = '<div class="btn-group">';
       html += '<button onclick="submitAnswer(\\'' + q.id + '\\', {choice: \\'yes\\'})" class="btn btn-success">' + escapeHtml(yesLabel) + '</button>';
       html += '<button onclick="submitAnswer(\\'' + q.id + '\\', {choice: \\'no\\'})" class="btn btn-danger">' + escapeHtml(noLabel) + '</button>';
       if (q.config.allowCancel) {
@@ -923,9 +954,6 @@ export function getHtmlBundle(): string {
     function renderAskText(q) {
       const multiline = q.config.multiline;
       let html = '';
-      if (q.config.context) {
-        html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
-      }
       if (multiline) {
         html += '<textarea id="text_' + q.id + '" class="textarea" rows="4" placeholder="' + escapeHtml(q.config.placeholder || '') + '"></textarea>';
       } else {
@@ -936,11 +964,7 @@ export function getHtmlBundle(): string {
     }
     
     function renderThumbs(q) {
-      let html = '';
-      if (q.config.context) {
-        html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
-      }
-      html += '<div class="thumbs-container">';
+      let html = '<div class="thumbs-container">';
       html += '<button onclick="submitAnswer(\\'' + q.id + '\\', {choice: \\'up\\'})" class="thumb-btn">\\uD83D\\uDC4D</button>';
       html += '<button onclick="submitAnswer(\\'' + q.id + '\\', {choice: \\'down\\'})" class="thumb-btn">\\uD83D\\uDC4E</button>';
       html += '</div>';
@@ -952,11 +976,7 @@ export function getHtmlBundle(): string {
       const max = q.config.max;
       const step = q.config.step || 1;
       const defaultVal = q.config.defaultValue || Math.floor((min + max) / 2);
-      let html = '';
-      if (q.config.context) {
-        html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
-      }
-      html += '<div class="slider-container">';
+      let html = '<div class="slider-container">';
       html += '<span class="slider-labels">' + min + '</span>';
       html += '<input type="range" id="slider_' + q.id + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + defaultVal + '">';
       html += '<span class="slider-labels">' + max + '</span>';
@@ -968,9 +988,6 @@ export function getHtmlBundle(): string {
     
     function renderReviewSection(q) {
       let html = '';
-      if (q.config.context) {
-        html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
-      }
       // Render markdown content
       const markdownHtml = typeof marked !== 'undefined' ? marked.parse(q.config.content || '') : escapeHtml(q.config.content || '');
       html += '<div class="review-content">' + markdownHtml + '</div>';
@@ -1068,9 +1085,7 @@ export function getHtmlBundle(): string {
     
     function renderRank(q) {
       const options = q.config.options || [];
-      let html = '';
-      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
-      html += '<div class="rank-list" id="rank_' + q.id + '">';
+      let html = '<div class="rank-list" id="rank_' + q.id + '">';
       for (let i = 0; i < options.length; i++) {
         const opt = options[i];
         html += '<div class="rank-item" data-id="' + opt.id + '" draggable="true">';
@@ -1105,7 +1120,6 @@ export function getHtmlBundle(): string {
     
     function renderAskCode(q) {
       let html = '';
-      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
       const lang = q.config.language || 'plaintext';
       html += '<div class="code-input-label">Language: ' + escapeHtml(lang) + '</div>';
       html += '<textarea id="code_' + q.id + '" class="textarea code-input" rows="10" placeholder="' + escapeHtml(q.config.placeholder || 'Enter code here...') + '"></textarea>';
@@ -1115,7 +1129,6 @@ export function getHtmlBundle(): string {
     
     function renderAskImage(q) {
       let html = '';
-      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
       const multiple = q.config.multiple ? 'multiple' : '';
       html += '<div class="file-upload">';
       html += '<input type="file" id="image_' + q.id + '" accept="image/*" ' + multiple + ' onchange="previewImages(\\'' + q.id + '\\')">';
@@ -1127,7 +1140,6 @@ export function getHtmlBundle(): string {
     
     function renderAskFile(q) {
       let html = '';
-      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
       const multiple = q.config.multiple ? 'multiple' : '';
       const accept = q.config.accept ? q.config.accept.join(',') : '';
       html += '<div class="file-upload">';
@@ -1140,7 +1152,6 @@ export function getHtmlBundle(): string {
     
     function renderEmojiReact(q) {
       let html = '';
-      if (q.config.context) html += '<div class="context">' + escapeHtml(q.config.context) + '</div>';
       const emojis = q.config.emojis || ['👍', '👎', '❤️', '🎉', '😕', '🚀'];
       html += '<div class="emoji-grid">';
       for (const emoji of emojis) {
