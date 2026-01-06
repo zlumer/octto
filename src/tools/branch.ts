@@ -33,24 +33,23 @@ export function createBranchTools(stateManager: StateManager, sessionManager: Se
         .describe("Branches to explore"),
     },
     execute: async (args) => {
-      console.log(`[create_brainstorm] Called with ${args.branches.length} branches`);
-      console.log(`[create_brainstorm] Request: ${args.request.substring(0, 100)}...`);
       const sessionId = generateId("ses");
-      console.log(`[create_brainstorm] Generated session ID: ${sessionId}`);
 
       // Create state with branches
-      console.log(`[create_brainstorm] Calling stateManager.createSession...`);
       await stateManager.createSession(
         sessionId,
         args.request,
         args.branches.map((b) => ({ id: b.id, scope: b.scope })),
       );
-      console.log(`[create_brainstorm] State session created: ${sessionId}`);
 
       // Start browser session with first questions from each branch
+      // Add branch scope as context so user knows which aspect they're answering
       const initialQuestions = args.branches.map((b) => ({
         type: b.initial_question.type as QuestionType,
-        config: b.initial_question.config as unknown as QuestionConfig,
+        config: {
+          ...b.initial_question.config,
+          context: `[${b.scope}] ${(b.initial_question.config as Record<string, unknown>).context || ""}`.trim(),
+        } as unknown as QuestionConfig,
       }));
 
       const browserSession = await sessionManager.startSession({
@@ -169,7 +168,6 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
       browser_session_id: tool.schema.string().describe("Browser session ID (for collecting answers)"),
     },
     execute: async (args) => {
-      console.log(`[await_brainstorm_complete] Starting for session ${args.session_id}`);
 
       const pendingProcessing: Promise<void>[] = [];
       let iterations = 0;
@@ -187,12 +185,10 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
 
         // Check if already complete (with fresh state)
         if (await isComplete()) {
-          console.log(`[await_brainstorm_complete] All branches done after ${iterations} iterations`);
           break;
         }
 
         // Wait for next answer (BLOCKING - this is where we wait for user)
-        console.log(`[await_brainstorm_complete] Waiting for next answer...`);
         const answerResult = await sessionManager.getNextAnswer({
           session_id: args.browser_session_id,
           block: true,
@@ -202,13 +198,11 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
         if (!answerResult.completed) {
           if (answerResult.status === "none_pending") {
             // No pending questions - wait for in-flight processing, then re-check
-            console.log(`[await_brainstorm_complete] No pending questions, waiting for processing...`);
             await Promise.all(pendingProcessing);
             pendingProcessing.length = 0; // Clear completed
             continue;
           }
           if (answerResult.status === "timeout") {
-            console.log(`[await_brainstorm_complete] Timeout waiting for answer`);
             break;
           }
           continue;
@@ -219,7 +213,6 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
           continue;
         }
 
-        console.log(`[await_brainstorm_complete] Got answer for ${question_id}`);
 
         // NON-BLOCKING: Fire off async processing (NO stale state passed)
         const processing = processAnswerAsync(
@@ -232,7 +225,6 @@ This is the recommended way to run a brainstorm - just create_brainstorm then aw
       }
 
       // Wait for any in-flight processing to complete
-      console.log(`[await_brainstorm_complete] Waiting for ${pendingProcessing.length} pending tasks`);
       await Promise.all(pendingProcessing);
 
       // Final completion check with fresh state
@@ -288,7 +280,6 @@ Some branches still exploring. Call await_brainstorm_complete again to continue.
       ];
 
       // Push show_plan to browser
-      console.log(`[await_brainstorm_complete] Pushing plan review for approval`);
       const { question_id: reviewQuestionId } = sessionManager.pushQuestion(
         args.browser_session_id,
         "show_plan",
@@ -299,7 +290,6 @@ Some branches still exploring. Call await_brainstorm_complete again to continue.
       );
 
       // Wait for review approval
-      console.log(`[await_brainstorm_complete] Waiting for review approval...`);
       const reviewResult = await sessionManager.getNextAnswer({
         session_id: args.browser_session_id,
         block: true,
@@ -323,7 +313,6 @@ Some branches still exploring. Call await_brainstorm_complete again to continue.
         }
       }
 
-      console.log(`[await_brainstorm_complete] Review result: approved=${approved}`);
 
       const findings = finalState.branch_order
         .map((id) => {
@@ -353,12 +342,10 @@ ${approved ? "Design approved. Write the design document to docs/plans/." : "Cha
     questionId: string,
     answer: unknown,
   ): Promise<void> {
-    console.log(`[processAnswerAsync] Processing answer for ${questionId}`);
 
     // Get FRESH state (not stale)
     const state = await stateManager.getSession(sessionId);
     if (!state) {
-      console.log(`[processAnswerAsync] Session ${sessionId} not found`);
       return;
     }
 
@@ -372,22 +359,18 @@ ${approved ? "Design approved. Write the design document to docs/plans/." : "Cha
     }
 
     if (!branchId) {
-      console.log(`[processAnswerAsync] Question ${questionId} not found in any branch`);
       return;
     }
 
     // Skip if branch already done
     if (state.branches[branchId].status === "done") {
-      console.log(`[processAnswerAsync] Branch ${branchId} already done, skipping`);
       return;
     }
 
     // Record the answer
     try {
       await stateManager.recordAnswer(sessionId, questionId, answer);
-      console.log(`[processAnswerAsync] Recorded answer for ${questionId} in branch ${branchId}`);
     } catch (error) {
-      console.log(`[processAnswerAsync] Error recording answer: ${error}`);
       return;
     }
 
@@ -402,33 +385,36 @@ ${approved ? "Design approved. Write the design document to docs/plans/." : "Cha
 
     // Evaluate branch (inline probe logic)
     const probeResult = evaluateBranch(branch);
-    console.log(`[processAnswerAsync] Probe result for ${branchId}: done=${probeResult.done}`);
 
     if (probeResult.done) {
       // Complete the branch
       await stateManager.completeBranch(sessionId, branchId, probeResult.finding || "No finding");
-      console.log(`[processAnswerAsync] Completed branch ${branchId}`);
     } else if (probeResult.question) {
-      // Push follow-up question
+      // Push follow-up question with branch scope as context
       const questionText =
         typeof probeResult.question.config === "object" && "question" in probeResult.question.config
           ? String((probeResult.question.config as { question: string }).question)
           : "Follow-up question";
 
+      const originalConfig = probeResult.question.config as unknown as Record<string, unknown>;
+      const configWithContext = {
+        ...originalConfig,
+        context: `[${branch.scope}] ${originalConfig.context || ""}`.trim(),
+      };
+
       const { question_id: newQuestionId } = sessionManager.pushQuestion(
         browserSessionId,
         probeResult.question.type as QuestionType,
-        probeResult.question.config,
+        configWithContext as QuestionConfig,
       );
 
       await stateManager.addQuestionToBranch(sessionId, branchId, {
         id: newQuestionId,
         type: probeResult.question.type as QuestionType,
         text: questionText,
-        config: probeResult.question.config,
+        config: configWithContext as QuestionConfig,
       });
 
-      console.log(`[processAnswerAsync] Pushed follow-up question ${newQuestionId} to branch ${branchId}`);
     }
   }
 
