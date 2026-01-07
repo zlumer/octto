@@ -1,5 +1,5 @@
 // src/state/types.ts
-import type { QuestionConfig, QuestionType } from "@/session";
+import type { Answer, BaseConfig, QuestionType } from "@/session";
 
 export type BranchStatus = "exploring" | "done";
 
@@ -7,8 +7,8 @@ export interface BranchQuestion {
   id: string;
   type: QuestionType;
   text: string;
-  config: QuestionConfig;
-  answer?: unknown;
+  config: BaseConfig;
+  answer?: Answer;
   answeredAt?: number;
 }
 
@@ -41,6 +41,6 @@ export interface BranchProbeResult {
   finding?: string;
   question?: {
     type: QuestionType;
-    config: QuestionConfig;
+    config: BaseConfig;
   };
 }

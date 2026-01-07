@@ -1,4 +1,6 @@
 // src/state/store.ts
+import type { Answer } from "@/session";
+
 import { createStatePersistence } from "./persistence";
 import type { BrainstormState, Branch, BranchQuestion, CreateBranchInput } from "./types";
 
@@ -7,7 +9,7 @@ export interface StateStore {
   getSession: (sessionId: string) => Promise<BrainstormState | null>;
   setBrowserSessionId: (sessionId: string, browserSessionId: string) => Promise<void>;
   addQuestionToBranch: (sessionId: string, branchId: string, question: BranchQuestion) => Promise<BranchQuestion>;
-  recordAnswer: (sessionId: string, questionId: string, answer: unknown) => Promise<void>;
+  recordAnswer: (sessionId: string, questionId: string, answer: Answer) => Promise<void>;
   completeBranch: (sessionId: string, branchId: string, finding: string) => Promise<void>;
   getNextExploringBranch: (sessionId: string) => Promise<Branch | null>;
   isSessionComplete: (sessionId: string) => Promise<boolean>;
@@ -72,7 +74,7 @@ export function createStateStore(baseDir = ".octto"): StateStore {
       return question;
     },
 
-    async recordAnswer(sessionId: string, questionId: string, answer: unknown): Promise<void> {
+    async recordAnswer(sessionId: string, questionId: string, answer: Answer): Promise<void> {
       const state = await persistence.load(sessionId);
       if (!state) throw new Error(`Session not found: ${sessionId}`);
 
