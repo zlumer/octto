@@ -48,6 +48,8 @@ function formatBranchContext(state: BrainstormState, branchId: string): string {
 }
 
 async function runProbeAgent(client: OpencodeClient, state: BrainstormState, branchId: string): Promise<ProbeResult> {
+  console.log(`[octto] Probe starting for branch "${branchId}"`);
+
   const sessionResult = await client.session.create({
     body: {
       title: `probe-${branchId}`,
@@ -55,6 +57,7 @@ async function runProbeAgent(client: OpencodeClient, state: BrainstormState, bra
   });
 
   if (!sessionResult.data) {
+    console.error("[octto] Probe failed to create session");
     throw new Error("Failed to create probe session");
   }
 
@@ -71,6 +74,7 @@ async function runProbeAgent(client: OpencodeClient, state: BrainstormState, bra
     });
 
     if (!promptResult.data) {
+      console.error("[octto] Probe failed to get response");
       throw new Error("Failed to get probe response");
     }
 
@@ -89,12 +93,15 @@ async function runProbeAgent(client: OpencodeClient, state: BrainstormState, bra
       return { done: true, finding: "Could not parse probe response" };
     }
 
-    return JSON.parse(jsonMatch[0]) as ProbeResult;
+    const result = JSON.parse(jsonMatch[0]) as ProbeResult;
+    if (result.done) {
+      console.log(`[octto] Probe completed branch "${branchId}": ${result.finding}`);
+    } else {
+      console.log(`[octto] Probe asking follow-up for branch "${branchId}": ${result.question?.type}`);
+    }
+    return result;
   } finally {
-    // Clean up the probe session
-    await client.session.delete({ path: { id: probeSessionId } }).catch(() => {
-      // Ignore cleanup errors
-    });
+    await client.session.delete({ path: { id: probeSessionId } }).catch(() => {});
   }
 }
 
