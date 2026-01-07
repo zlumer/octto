@@ -52,9 +52,9 @@ export async function processAnswer(
   }
 
   if (result.question) {
-    const config = result.question.config;
-    const questionText = "question" in config ? (config.question ?? "Follow-up question") : "Follow-up question";
-    const existingContext = "context" in config ? (config.context ?? "") : "";
+    const config = result.question.config as { question?: string; context?: string };
+    const questionText = config.question ?? "Follow-up question";
+    const existingContext = config.context ?? "";
     const configWithContext = {
       ...config,
       context: `[${branch.scope}] ${existingContext}`.trim(),
