@@ -2,6 +2,7 @@
 
 import type { AgentConfig } from "@opencode-ai/sdk";
 
+import { agent as defaultProbeAgent } from "@/agents/probe";
 import type { Answer, QuestionType, SessionStore } from "@/session";
 import { BRANCH_STATUSES, type BrainstormState, type StateStore } from "@/state";
 
@@ -73,13 +74,16 @@ async function runProbeAgent(
   const probeSessionId = sessionResult.data.id;
 
   try {
-    // Send the context and get the response
-    const model = probeConfig.model ? parseModelString(probeConfig.model) : undefined;
+    // Send the context and get the response (fall back to defaults if not configured)
+    const modelString = probeConfig.model ?? defaultProbeAgent.model;
+    const model = modelString ? parseModelString(modelString) : undefined;
+    const system = probeConfig.prompt ?? defaultProbeAgent.prompt;
+
     const promptResult = await client.session.prompt({
       path: { id: probeSessionId },
       body: {
         model,
-        system: probeConfig.prompt,
+        system,
         tools: {}, // Disable all tools
         parts: [{ type: "text", text: formatBranchContext(state, branchId) }],
       },
