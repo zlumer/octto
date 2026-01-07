@@ -1,19 +1,20 @@
 // tests/tools/session.test.ts
-import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
-import { SessionManager } from "../../src/session/manager";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+
+import { createSessionStore } from "../../src/session/sessions";
 import { createSessionTools } from "../../src/tools/session";
 
 describe("Session Tools", () => {
-  let manager: SessionManager;
+  let sessions: ReturnType<typeof createSessionStore>;
   let tools: ReturnType<typeof createSessionTools>;
 
   beforeEach(() => {
-    manager = new SessionManager({ skipBrowser: true });
-    tools = createSessionTools(manager);
+    sessions = createSessionStore({ skipBrowser: true });
+    tools = createSessionTools(sessions);
   });
 
   afterEach(async () => {
-    await manager.cleanup();
+    await sessions.cleanup();
   });
 
   describe("start_session", () => {

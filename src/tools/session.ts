@@ -1,9 +1,11 @@
 // src/tools/session.ts
 import { tool } from "@opencode-ai/plugin/tool";
-import type { SessionManager } from "../session/manager";
-import type { QuestionType, QuestionConfig } from "../session/types";
 
-export function createSessionTools(manager: SessionManager) {
+import type { SessionStore } from "@/session";
+
+import type { OcttoTools } from "./types";
+
+export function createSessionTools(sessions: SessionStore): OcttoTools {
   const start_session = tool({
     description: `Start an interactive octto session with initial questions.
 Opens a browser window with questions already displayed - no waiting.
@@ -25,7 +27,12 @@ REQUIRED: You MUST provide at least 1 question. Will fail without questions.`,
                 "slider",
               ])
               .describe("Question type"),
-            config: tool.schema.object({}).passthrough().describe("Question config (varies by type)"),
+            config: tool.schema
+              .looseObject({
+                question: tool.schema.string().optional(),
+                context: tool.schema.string().optional(),
+              })
+              .describe("Question config (varies by type)"),
           }),
         )
         .describe("REQUIRED: Initial questions to display when browser opens. Must have at least 1."),
@@ -52,11 +59,7 @@ Please call start_session again WITH your prepared questions.`;
       }
 
       try {
-        const questions = args.questions.map((q) => ({
-          type: q.type as QuestionType,
-          config: q.config as unknown as QuestionConfig,
-        }));
-        const result = await manager.startSession({ title: args.title, questions });
+        const result = await sessions.startSession({ title: args.title, questions: args.questions });
 
         let output = `## Session Started
 
@@ -89,7 +92,7 @@ Closes the browser window and cleans up resources.`,
       session_id: tool.schema.string().describe("Session ID to end"),
     },
     execute: async (args) => {
-      const result = await manager.endSession(args.session_id);
+      const result = await sessions.endSession(args.session_id);
       if (result.ok) {
         return `Session ${args.session_id} ended successfully.`;
       }

@@ -1,5 +1,5 @@
 // tests/integration/multi-agent.test.ts
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
 describe("Multi-Agent Integration", () => {
   describe("Bootstrapper JSON parsing", () => {

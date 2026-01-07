@@ -1,154 +1,155 @@
 // tests/session/waiter.test.ts
-import { describe, it, expect, beforeEach } from "bun:test";
-import { WaiterManager, waitForResponse } from "../../src/session/waiter";
+import { beforeEach, describe, expect, it } from "bun:test";
 
-describe("WaiterManager", () => {
-  let manager: WaiterManager<string, unknown>;
+import { createWaiters, type Waiters, waitForResponse } from "../../src/session/waiter";
+
+describe("createWaiters", () => {
+  let waiters: Waiters<string, unknown>;
 
   beforeEach(() => {
-    manager = new WaiterManager<string, unknown>();
+    waiters = createWaiters<string, unknown>();
   });
 
-  describe("registerWaiter", () => {
+  describe("register", () => {
     it("should register a waiter and return cleanup function", () => {
-      let resolved = false;
-      const cleanup = manager.registerWaiter("key1", () => {
-        resolved = true;
+      let _resolved = false;
+      const cleanup = waiters.register("key1", () => {
+        _resolved = true;
       });
 
       expect(typeof cleanup).toBe("function");
-      expect(manager.hasWaiters("key1")).toBe(true);
+      expect(waiters.has("key1")).toBe(true);
     });
 
     it("should allow multiple waiters for same key", () => {
-      manager.registerWaiter("key1", () => {});
-      manager.registerWaiter("key1", () => {});
+      waiters.register("key1", () => {});
+      waiters.register("key1", () => {});
 
-      expect(manager.getWaiterCount("key1")).toBe(2);
+      expect(waiters.count("key1")).toBe(2);
     });
 
     it("cleanup should remove only that waiter", () => {
-      const cleanup1 = manager.registerWaiter("key1", () => {});
-      manager.registerWaiter("key1", () => {});
+      const cleanup1 = waiters.register("key1", () => {});
+      waiters.register("key1", () => {});
 
       cleanup1();
 
-      expect(manager.getWaiterCount("key1")).toBe(1);
+      expect(waiters.count("key1")).toBe(1);
     });
   });
 
   describe("notifyFirst", () => {
     it("should call only the first waiter", async () => {
       const calls: number[] = [];
-      manager.registerWaiter("key1", () => calls.push(1));
-      manager.registerWaiter("key1", () => calls.push(2));
+      waiters.register("key1", () => calls.push(1));
+      waiters.register("key1", () => calls.push(2));
 
-      manager.notifyFirst("key1", "data");
+      waiters.notifyFirst("key1", "data");
 
       expect(calls).toEqual([1]);
-      expect(manager.getWaiterCount("key1")).toBe(1);
+      expect(waiters.count("key1")).toBe(1);
     });
 
     it("should do nothing if no waiters", () => {
       // Should not throw
-      manager.notifyFirst("nonexistent", "data");
+      waiters.notifyFirst("nonexistent", "data");
     });
   });
 
   describe("notifyAll", () => {
     it("should call all waiters for a key", () => {
       const calls: number[] = [];
-      manager.registerWaiter("key1", () => calls.push(1));
-      manager.registerWaiter("key1", () => calls.push(2));
+      waiters.register("key1", () => calls.push(1));
+      waiters.register("key1", () => calls.push(2));
 
-      manager.notifyAll("key1", "data");
+      waiters.notifyAll("key1", "data");
 
       expect(calls).toEqual([1, 2]);
     });
 
     it("should remove all waiters after notification", () => {
-      manager.registerWaiter("key1", () => {});
-      manager.registerWaiter("key1", () => {});
+      waiters.register("key1", () => {});
+      waiters.register("key1", () => {});
 
-      manager.notifyAll("key1", "data");
+      waiters.notifyAll("key1", "data");
 
-      expect(manager.hasWaiters("key1")).toBe(false);
+      expect(waiters.has("key1")).toBe(false);
     });
   });
 
   describe("immutability", () => {
     it("should not mutate original array when adding waiter", () => {
-      manager.registerWaiter("key1", () => {});
-      const countBefore = manager.getWaiterCount("key1");
+      waiters.register("key1", () => {});
+      const countBefore = waiters.count("key1");
 
-      manager.registerWaiter("key1", () => {});
+      waiters.register("key1", () => {});
 
       // Original count should have been 1, now 2
       expect(countBefore).toBe(1);
-      expect(manager.getWaiterCount("key1")).toBe(2);
+      expect(waiters.count("key1")).toBe(2);
     });
 
     it("should not mutate original array when removing waiter", () => {
-      const cleanup = manager.registerWaiter("key1", () => {});
-      manager.registerWaiter("key1", () => {});
+      const cleanup = waiters.register("key1", () => {});
+      waiters.register("key1", () => {});
 
-      const countBefore = manager.getWaiterCount("key1");
+      const countBefore = waiters.count("key1");
       cleanup();
 
       expect(countBefore).toBe(2);
-      expect(manager.getWaiterCount("key1")).toBe(1);
+      expect(waiters.count("key1")).toBe(1);
     });
   });
 
-  describe("clearAll", () => {
+  describe("clear", () => {
     it("should remove all waiters for a key", () => {
-      manager.registerWaiter("key1", () => {});
-      manager.registerWaiter("key1", () => {});
+      waiters.register("key1", () => {});
+      waiters.register("key1", () => {});
 
-      manager.clearAll("key1");
+      waiters.clear("key1");
 
-      expect(manager.hasWaiters("key1")).toBe(false);
+      expect(waiters.has("key1")).toBe(false);
     });
   });
 });
 
 describe("waitForResponse", () => {
-  let manager: WaiterManager<string, string>;
+  let waiters: Waiters<string, string>;
 
   beforeEach(() => {
-    manager = new WaiterManager<string, string>();
+    waiters = createWaiters<string, string>();
   });
 
   it("should resolve when waiter is notified", async () => {
-    const promise = waitForResponse(manager, "key1", 1000);
+    const promise = waitForResponse(waiters, "key1", 1000);
 
     // Simulate async notification
-    setTimeout(() => manager.notifyFirst("key1", "result"), 10);
+    setTimeout(() => waiters.notifyFirst("key1", "result"), 10);
 
     const result = await promise;
     expect(result).toEqual({ ok: true, data: "result" });
   });
 
   it("should timeout if not notified in time", async () => {
-    const result = await waitForResponse(manager, "key1", 50);
+    const result = await waitForResponse(waiters, "key1", 50);
 
     expect(result).toEqual({ ok: false, reason: "timeout" });
   });
 
   it("should cleanup waiter on timeout", async () => {
-    await waitForResponse(manager, "key1", 50);
+    await waitForResponse(waiters, "key1", 50);
 
-    expect(manager.hasWaiters("key1")).toBe(false);
+    expect(waiters.has("key1")).toBe(false);
   });
 
   it("should cleanup timeout on success", async () => {
-    const promise = waitForResponse(manager, "key1", 1000);
+    const promise = waitForResponse(waiters, "key1", 1000);
 
-    setTimeout(() => manager.notifyFirst("key1", "result"), 10);
+    setTimeout(() => waiters.notifyFirst("key1", "result"), 10);
 
     await promise;
 
     // If timeout wasn't cleaned up, this would fail or hang
-    expect(manager.hasWaiters("key1")).toBe(false);
+    expect(waiters.has("key1")).toBe(false);
   });
 });

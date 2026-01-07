@@ -1,7 +1,9 @@
 import type { Server, ServerWebSocket } from "bun";
-import type { SessionManager } from "./manager";
+
+import { getHtmlBundle } from "@/ui";
+
+import type { SessionStore } from "./sessions";
 import type { WsClientMessage } from "./types";
-import { getHtmlBundle } from "../ui/bundle";
 
 interface WsData {
   sessionId: string;
@@ -9,7 +11,7 @@ interface WsData {
 
 export async function createServer(
   sessionId: string,
-  manager: SessionManager,
+  store: SessionStore,
 ): Promise<{ server: Server<WsData>; port: number }> {
   const htmlBundle = getHtmlBundle();
 
@@ -43,30 +45,31 @@ export async function createServer(
     websocket: {
       open(ws: ServerWebSocket<WsData>) {
         const { sessionId } = ws.data;
-        manager.handleWsConnect(sessionId, ws);
+        store.handleWsConnect(sessionId, ws);
       },
       close(ws: ServerWebSocket<WsData>) {
         const { sessionId } = ws.data;
-        manager.handleWsDisconnect(sessionId);
+        store.handleWsDisconnect(sessionId);
       },
       message(ws: ServerWebSocket<WsData>, message: string | Buffer) {
         const { sessionId } = ws.data;
+
+        let parsed: WsClientMessage;
         try {
-          const parsed = JSON.parse(message.toString()) as WsClientMessage;
-          manager.handleWsMessage(sessionId, parsed);
+          parsed = JSON.parse(message.toString()) as WsClientMessage;
         } catch (error) {
           console.error("[octto] Failed to parse WebSocket message:", error);
-          // Send error back to client so it can handle gracefully
-          try {
-            ws.send(JSON.stringify({
+          ws.send(
+            JSON.stringify({
               type: "error",
               error: "Invalid message format",
               details: error instanceof Error ? error.message : "Parse failed",
-            }));
-          } catch {
-            // WebSocket might be closed, ignore send failure
-          }
+            }),
+          );
+          return;
         }
+
+        store.handleWsMessage(sessionId, parsed);
       },
     },
   });

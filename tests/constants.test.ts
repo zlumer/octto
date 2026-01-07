@@ -1,5 +1,6 @@
 // tests/constants.test.ts
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
+
 import { DEFAULT_ANSWER_TIMEOUT_MS, DEFAULT_MAX_QUESTIONS } from "../src/constants";
 
 describe("constants", () => {

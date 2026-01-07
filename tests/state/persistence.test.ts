@@ -1,18 +1,18 @@
 // tests/state/persistence.test.ts
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { existsSync, rmSync, mkdirSync } from "fs";
-import { join } from "path";
-import { StatePersistence } from "../../src/state/persistence";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { existsSync, rmSync } from "node:fs";
+
+import { createStatePersistence, type StatePersistence } from "../../src/state/persistence";
 import type { BrainstormState } from "../../src/state/types";
 
 const TEST_DIR = "/tmp/octto-test";
 
-describe("StatePersistence", () => {
+describe("createStatePersistence", () => {
   let persistence: StatePersistence;
 
   beforeEach(() => {
     rmSync(TEST_DIR, { recursive: true, force: true });
-    persistence = new StatePersistence(TEST_DIR);
+    persistence = createStatePersistence(TEST_DIR);
   });
 
   afterEach(() => {

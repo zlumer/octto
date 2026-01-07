@@ -1,7 +1,8 @@
 // tests/tools/probe-logic.test.ts
-import { describe, it, expect } from "bun:test";
-import { evaluateBranch } from "../../src/tools/probe-logic";
+import { describe, expect, it } from "bun:test";
+
 import type { Branch } from "../../src/state/types";
+import { evaluateBranch } from "../../src/tools/probe-logic";
 
 function createBranch(overrides: Partial<Branch> = {}): Branch {
   return {
@@ -18,9 +19,7 @@ describe("evaluateBranch", () => {
   describe("pending questions", () => {
     it("should wait when there are unanswered questions", () => {
       const branch = createBranch({
-        questions: [
-          { id: "q1", type: "ask_text", text: "Question 1", config: {} },
-        ],
+        questions: [{ id: "q1", type: "ask_text", text: "Question 1", config: {} }],
       });
 
       const result = evaluateBranch(branch);
@@ -85,9 +84,7 @@ describe("evaluateBranch", () => {
     it("should generate priority question after first answer", () => {
       const branch = createBranch({
         scope: "Database storage",
-        questions: [
-          { id: "q1", type: "pick_one", text: "Which DB?", config: {}, answer: { selected: "PostgreSQL" } },
-        ],
+        questions: [{ id: "q1", type: "pick_one", text: "Which DB?", config: {}, answer: { selected: "PostgreSQL" } }],
       });
 
       const result = evaluateBranch(branch);
@@ -254,9 +251,7 @@ describe("evaluateBranch", () => {
     it("should provide database-specific options for database scope", () => {
       const branch = createBranch({
         scope: "Database storage",
-        questions: [
-          { id: "q1", type: "pick_one", text: "Which DB?", config: {}, answer: { selected: "PostgreSQL" } },
-        ],
+        questions: [{ id: "q1", type: "pick_one", text: "Which DB?", config: {}, answer: { selected: "PostgreSQL" } }],
       });
 
       const result = evaluateBranch(branch);
@@ -270,9 +265,7 @@ describe("evaluateBranch", () => {
     it("should provide API-specific options for API scope", () => {
       const branch = createBranch({
         scope: "API endpoints",
-        questions: [
-          { id: "q1", type: "pick_one", text: "Style?", config: {}, answer: { selected: "REST" } },
-        ],
+        questions: [{ id: "q1", type: "pick_one", text: "Style?", config: {}, answer: { selected: "REST" } }],
       });
 
       const result = evaluateBranch(branch);
@@ -285,9 +278,7 @@ describe("evaluateBranch", () => {
     it("should provide security-specific options for auth scope", () => {
       const branch = createBranch({
         scope: "Authentication method",
-        questions: [
-          { id: "q1", type: "pick_one", text: "Method?", config: {}, answer: { selected: "OAuth" } },
-        ],
+        questions: [{ id: "q1", type: "pick_one", text: "Method?", config: {}, answer: { selected: "OAuth" } }],
       });
 
       const result = evaluateBranch(branch);

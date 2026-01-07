@@ -1,8 +1,11 @@
 // src/tools/responses.ts
 import { tool } from "@opencode-ai/plugin/tool";
-import type { SessionManager } from "../session/manager";
 
-export function createResponseTools(manager: SessionManager) {
+import { type SessionStore, STATUSES } from "@/session";
+
+import type { OcttoTools } from "./types";
+
+export function createResponseTools(sessions: SessionStore): OcttoTools {
   const get_answer = tool({
     description: `Get the answer to a SPECIFIC question.
 By default returns immediately with current status.
@@ -17,7 +20,7 @@ NOTE: Prefer get_next_answer for better flow - it returns whichever question use
         .describe("Max milliseconds to wait if blocking (default: 300000 = 5 min)"),
     },
     execute: async (args) => {
-      const result = await manager.getAnswer({
+      const result = await sessions.getAnswer({
         question_id: args.question_id,
         block: args.block,
         timeout: args.timeout,
@@ -39,7 +42,7 @@ ${JSON.stringify(result.response, null, 2)}
 **Status:** ${result.status}
 **Reason:** ${result.reason}
 
-${result.status === "pending" ? "User has not answered yet. Call again with block=true to wait." : ""}`;
+${result.status === STATUSES.PENDING ? "User has not answered yet. Call again with block=true to wait." : ""}`;
     },
   });
 
@@ -56,7 +59,7 @@ Push multiple questions, then call this repeatedly to get answers as they come.`
         .describe("Max milliseconds to wait if blocking (default: 300000 = 5 min)"),
     },
     execute: async (args) => {
-      const result = await manager.getNextAnswer({
+      const result = await sessions.getNextAnswer({
         session_id: args.session_id,
         block: args.block,
         timeout: args.timeout,
@@ -75,7 +78,7 @@ ${JSON.stringify(result.response, null, 2)}
 \`\`\``;
       }
 
-      if (result.status === "none_pending") {
+      if (result.status === STATUSES.NONE_PENDING) {
         return `## No Pending Questions
 
 All questions have been answered or there are no questions in the queue.
@@ -85,7 +88,7 @@ Push more questions or end the session.`;
       return `## Waiting for Answer
 
 **Status:** ${result.status}
-${result.reason === "timeout" ? "Timed out waiting for response." : "No answer yet."}`;
+${result.reason === STATUSES.TIMEOUT ? "Timed out waiting for response." : "No answer yet."}`;
     },
   });
 
@@ -95,7 +98,7 @@ ${result.reason === "timeout" ? "Timed out waiting for response." : "No answer y
       session_id: tool.schema.string().optional().describe("Session ID (omit for all sessions)"),
     },
     execute: async (args) => {
-      const result = manager.listQuestions(args.session_id);
+      const result = sessions.listQuestions(args.session_id);
 
       if (result.questions.length === 0) {
         return "No questions found.";
@@ -120,7 +123,7 @@ The question will be removed from the user's queue.`,
       question_id: tool.schema.string().describe("Question ID to cancel"),
     },
     execute: async (args) => {
-      const result = manager.cancelQuestion(args.question_id);
+      const result = sessions.cancelQuestion(args.question_id);
       if (result.ok) {
         return `Question ${args.question_id} cancelled.`;
       }

@@ -1,14 +1,19 @@
 // src/state/types.ts
-import type { QuestionType, QuestionConfig } from "../session/types";
+import type { Answer, BaseConfig, QuestionType } from "@/session";
 
-export type BranchStatus = "exploring" | "done";
+export const BRANCH_STATUSES = {
+  EXPLORING: "exploring",
+  DONE: "done",
+} as const;
+
+export type BranchStatus = (typeof BRANCH_STATUSES)[keyof typeof BRANCH_STATUSES];
 
 export interface BranchQuestion {
   id: string;
   type: QuestionType;
   text: string;
-  config: QuestionConfig;
-  answer?: unknown;
+  config: BaseConfig;
+  answer?: Answer;
   answeredAt?: number;
 }
 
@@ -41,6 +46,6 @@ export interface BranchProbeResult {
   finding?: string;
   question?: {
     type: QuestionType;
-    config: QuestionConfig;
+    config: BaseConfig;
   };
 }

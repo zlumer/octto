@@ -1,0 +1,13 @@
+// src/tools/types.ts
+
+import type { ToolContext } from "@opencode-ai/plugin/tool";
+
+// Using `any` to avoid exposing zod types in declaration files.
+// The actual tools are typesafe via zod schemas.
+export interface OcttoTool {
+  description: string;
+  args: any;
+  execute: (args: any, context: ToolContext) => Promise<string>;
+}
+
+export type OcttoTools = Record<string, OcttoTool>;

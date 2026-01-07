@@ -1,7 +1,7 @@
 // src/agents/bootstrapper.ts
 import type { AgentConfig } from "@opencode-ai/sdk";
 
-export const bootstrapperAgent: AgentConfig = {
+export const agent: AgentConfig = {
   description: "Analyzes a request and creates exploration branches with scopes",
   mode: "subagent",
   model: "anthropic/claude-opus-4-5",
