@@ -1,4 +1,24 @@
 export type { SessionStore, SessionStoreOptions } from "./sessions";
 export { createSessionStore } from "./sessions";
-export type { QuestionConfig, QuestionType } from "./types";
-export { QUESTION_TYPES } from "./types";
+export type {
+  Answer,
+  AskCodeAnswer,
+  AskFileAnswer,
+  AskImageAnswer,
+  AskTextAnswer,
+  BaseConfig,
+  ConfirmAnswer,
+  EmojiReactAnswer,
+  PickManyAnswer,
+  PickOneAnswer,
+  QuestionAnswers,
+  QuestionConfig,
+  QuestionType,
+  RankAnswer,
+  RateAnswer,
+  ReviewAnswer,
+  ShowOptionsAnswer,
+  SliderAnswer,
+  ThumbsAnswer,
+} from "./types";
+export { QUESTION_TYPES, QUESTIONS, STATUSES } from "./types";
