@@ -3,8 +3,7 @@ import { tool } from "@opencode-ai/plugin/tool";
 
 import type { ReviewAnswer, SessionStore } from "@/session";
 import { QUESTION_TYPES, QUESTIONS, STATUSES } from "@/session";
-import type { BrainstormState, StateStore } from "@/state";
-import { createStateStore } from "@/state";
+import { BRANCH_STATUSES, type BrainstormState, createStateStore, type StateStore } from "@/state";
 
 import { formatBranchStatus, formatFindings, formatFindingsList, formatQASummary } from "./formatters";
 import { processAnswer } from "./processor";
@@ -240,7 +239,7 @@ ${branchesXml}
       if (!state) return `<error>Session not found: ${args.session_id}</error>`;
 
       const branches = state.branch_order.map((id) => formatBranchStatus(state.branches[id])).join("\n");
-      const allDone = Object.values(state.branches).every((b) => b.status === "done");
+      const allDone = Object.values(state.branches).every((b) => b.status === BRANCH_STATUSES.DONE);
 
       return `<session_summary>
   <request>${state.request}</request>

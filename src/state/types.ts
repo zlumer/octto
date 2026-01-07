@@ -1,7 +1,12 @@
 // src/state/types.ts
 import type { Answer, BaseConfig, QuestionType } from "@/session";
 
-export type BranchStatus = "exploring" | "done";
+export const BRANCH_STATUSES = {
+  EXPLORING: "exploring",
+  DONE: "done",
+} as const;
+
+export type BranchStatus = (typeof BRANCH_STATUSES)[keyof typeof BRANCH_STATUSES];
 
 export interface BranchQuestion {
   id: string;

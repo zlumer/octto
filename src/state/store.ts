@@ -2,7 +2,13 @@
 import type { Answer } from "@/session";
 
 import { createStatePersistence } from "./persistence";
-import type { BrainstormState, Branch, BranchQuestion, CreateBranchInput } from "./types";
+import {
+  BRANCH_STATUSES,
+  type BrainstormState,
+  type Branch,
+  type BranchQuestion,
+  type CreateBranchInput,
+} from "./types";
 
 export interface StateStore {
   createSession: (sessionId: string, request: string, branches: CreateBranchInput[]) => Promise<BrainstormState>;
@@ -32,7 +38,7 @@ export function createStateStore(baseDir = ".octto"): StateStore {
         branches[input.id] = {
           id: input.id,
           scope: input.scope,
-          status: "exploring",
+          status: BRANCH_STATUSES.EXPLORING,
           questions: [],
           finding: null,
         };
@@ -95,7 +101,7 @@ export function createStateStore(baseDir = ".octto"): StateStore {
       if (!state) throw new Error(`Session not found: ${sessionId}`);
       if (!state.branches[branchId]) throw new Error(`Branch not found: ${branchId}`);
 
-      state.branches[branchId].status = "done";
+      state.branches[branchId].status = BRANCH_STATUSES.DONE;
       state.branches[branchId].finding = finding;
       await persistence.save(state);
     },
@@ -106,7 +112,7 @@ export function createStateStore(baseDir = ".octto"): StateStore {
 
       for (const branchId of state.branch_order) {
         const branch = state.branches[branchId];
-        if (branch.status === "exploring") {
+        if (branch.status === BRANCH_STATUSES.EXPLORING) {
           return branch;
         }
       }
@@ -117,7 +123,7 @@ export function createStateStore(baseDir = ".octto"): StateStore {
       const state = await persistence.load(sessionId);
       if (!state) return false;
 
-      return Object.values(state.branches).every((b) => b.status === "done");
+      return Object.values(state.branches).every((b) => b.status === BRANCH_STATUSES.DONE);
     },
 
     async deleteSession(sessionId: string): Promise<void> {

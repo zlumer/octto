@@ -1,7 +1,7 @@
 // src/tools/processor.ts
 
 import type { Answer, SessionStore } from "@/session";
-import type { StateStore } from "@/state";
+import { BRANCH_STATUSES, type StateStore } from "@/state";
 
 import { evaluateBranch } from "./probe-logic";
 
@@ -26,7 +26,7 @@ export async function processAnswer(
   }
 
   if (!branchId) return;
-  if (state.branches[branchId].status === "done") return;
+  if (state.branches[branchId].status === BRANCH_STATUSES.DONE) return;
 
   // Record the answer
   try {
@@ -41,7 +41,7 @@ export async function processAnswer(
   if (!updatedState) return;
 
   const branch = updatedState.branches[branchId];
-  if (!branch || branch.status === "done") return;
+  if (!branch || branch.status === BRANCH_STATUSES.DONE) return;
 
   // Evaluate and act
   const result = evaluateBranch(branch);
