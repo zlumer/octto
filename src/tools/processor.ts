@@ -6,6 +6,11 @@ import { BRANCH_STATUSES, type BrainstormState, type StateStore } from "@/state"
 
 import type { OpencodeClient } from "./types";
 
+function parseModelString(modelString: string): { providerID: string; modelID: string } {
+  const [providerID, modelID] = modelString.split("/");
+  return { providerID, modelID };
+}
+
 interface ProbeResult {
   done: boolean;
   finding?: string;
@@ -63,9 +68,11 @@ async function runProbeAgent(client: OpencodeClient, state: BrainstormState, bra
 
   try {
     // Send the context and get the response
+    const model = probeAgent.model ? parseModelString(probeAgent.model) : undefined;
     const promptResult = await client.session.prompt({
       path: { id: probeSessionId },
       body: {
+        model,
         system: probeAgent.prompt,
         tools: {}, // Disable all tools
         parts: [{ type: "text", text: formatBranchContext(state, branchId) }],
