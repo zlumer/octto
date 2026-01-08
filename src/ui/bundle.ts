@@ -407,7 +407,8 @@ export function getHtmlBundle(): string {
     .thinking {
       text-align: center;
       padding: 2rem;
-      margin-top: 1rem;
+      margin-top: 2rem;
+      margin-bottom: 2rem;
       border: 1px dashed var(--border-subtle);
     }
 
