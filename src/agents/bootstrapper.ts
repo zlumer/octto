@@ -4,7 +4,7 @@ import type { AgentConfig } from "@opencode-ai/sdk";
 export const agent: AgentConfig = {
   description: "Analyzes a request and creates exploration branches with scopes",
   mode: "subagent",
-  model: "anthropic/claude-opus-4-5",
+  model: "openai/gpt-5.2-codex",
   temperature: 0.5,
   prompt: `<purpose>
 Analyze the user's request and create 2-4 exploration branches.
